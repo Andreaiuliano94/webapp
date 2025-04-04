@@ -1,0 +1,91 @@
+// server/prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             Int       @id @default(autoincrement())
+  username       String    @unique
+  email          String    @unique
+  password       String
+  displayName    String?
+  bio            String?   @db.Text
+  avatarUrl      String?
+  status         UserStatus @default(OFFLINE)
+  lastSeen       DateTime  @default(now())
+  sentMessages   Message[] @relation("SentMessages")
+  receivedMessages Message[] @relation("ReceivedMessages")
+  sentRequests   FriendRequest[] @relation("SentRequests")
+  receivedRequests FriendRequest[] @relation("ReceivedRequests")
+  contacts       Contact[] @relation("UserContacts")
+  contactOf      Contact[] @relation("ContactOfUser")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@map("users")
+}
+
+model Message {
+  id          Int       @id @default(autoincrement())
+  content     String    @db.Text
+  senderId    Int
+  sender      User      @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiverId  Int
+  receiver    User      @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  isRead      Boolean   @default(false)
+  readAt      DateTime?
+  attachmentUrl String?
+  attachmentType String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([senderId, receiverId])
+  @@map("messages")
+}
+
+model FriendRequest {
+  id          Int       @id @default(autoincrement())
+  senderId    Int
+  sender      User      @relation("SentRequests", fields: [senderId], references: [id], onDelete: Cascade)
+  receiverId  Int
+  receiver    User      @relation("ReceivedRequests", fields: [receiverId], references: [id], onDelete: Cascade)
+  status      RequestStatus @default(PENDING)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([senderId, receiverId])
+  @@map("friend_requests")
+}
+
+model Contact {
+  id          Int       @id @default(autoincrement())
+  userId      Int
+  user        User      @relation("UserContacts", fields: [userId], references: [id], onDelete: Cascade)
+  contactId   Int
+  contact     User      @relation("ContactOfUser", fields: [contactId], references: [id], onDelete: Cascade)
+  nickname    String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([userId, contactId])
+  @@map("contacts")
+}
+
+enum UserStatus {
+  ONLINE
+  OFFLINE
+  AWAY
+  BUSY
+}
+
+enum RequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
