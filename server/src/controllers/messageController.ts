@@ -212,3 +212,33 @@ export const deleteMessage = async (req: Request, res: Response) => {
     res.status(500).json({ message: 'Server error deleting message' });
   }
 };
+export const deleteConversation = async (req: Request, res: Response) => {
+  const { userId } = req.params;
+  
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: 'User not authenticated' });
+    }
+
+    // Elimina tutti i messaggi tra l'utente corrente e l'utente specificato
+    await prisma.message.deleteMany({
+      where: {
+        OR: [
+          {
+            senderId: req.user.id,
+            receiverId: parseInt(userId)
+          },
+          {
+            senderId: parseInt(userId),
+            receiverId: req.user.id
+          }
+        ]
+      }
+    });
+
+    res.status(200).json({ message: 'Conversation deleted successfully' });
+  } catch (error) {
+    console.error('Delete conversation error:', error);
+    res.status(500).json({ message: 'Server error deleting conversation' });
+  }
+};

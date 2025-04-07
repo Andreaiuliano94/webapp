@@ -29,7 +29,7 @@ const MessageItem = ({ message, isOwnMessage }: MessageItemProps) => {
   const [copySuccess, setCopySuccess] = useState(false);
   const [forwardSuccess, setForwardSuccess] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
-  const { messages, setMessages, users } = useContext(ChatContext);
+  const { messages, setMessages, users, selectedUser, socket } = useContext(ChatContext);
   const { user: currentUser } = useAuth();
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -91,20 +91,44 @@ const MessageItem = ({ message, isOwnMessage }: MessageItemProps) => {
   const handleForwardToUser = async (userId: number) => {
     try {
       const token = localStorage.getItem('token');
-      if (!token || !currentUser) return;
-
-      // Inoltra il messaggio usando lo stesso contenuto e allegati
-      await axios.post('/api/messages', {
-        receiverId: userId,
+      if (!token || !currentUser || !socket) return;
+  
+      // Prepariamo i dati da inviare per l'inoltro
+      const forwardData = {
         content: message.content,
+        senderId: currentUser.id,
+        receiverId: userId,
         attachmentUrl: message.attachmentUrl,
         attachmentType: message.attachmentType
-      }, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
-
+      };
+  
+      // Invia direttamente tramite socket per garantire l'aggiornamento in tempo reale
+      socket.emit('sendMessage', forwardData);
+  
+      // Se siamo nella stessa conversazione, aggiungiamo anche un messaggio ottimistico
+      if (selectedUser?.id === userId) {
+        // Crea un messaggio ottimistico (verrà sostituito quando il server conferma)
+        const optimisticMessage: Message = {
+          id: -Date.now(), // ID temporaneo negativo
+          content: message.content,
+          senderId: currentUser.id,
+          receiverId: userId,
+          isRead: false,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          attachmentUrl: message.attachmentUrl,
+          attachmentType: message.attachmentType,
+          sender: {
+            id: currentUser.id,
+            username: currentUser.username,
+            avatarUrl: currentUser.avatarUrl
+          }
+        };
+        
+        // Aggiungi il messaggio ottimistico alla lista dei messaggi
+        setMessages(prevMessages => [...prevMessages, optimisticMessage]);
+      }
+  
       // Chiudi il dialog di inoltro
       setForwardDialogOpen(false);
       

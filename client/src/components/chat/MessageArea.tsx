@@ -17,7 +17,7 @@ import { useChat } from '../../context/ChatContext';
 import MessageItem from './MessageItem';
 import { format } from 'date-fns';
 import axios from 'axios';
-// Nota: Dovrai installare questa libreria
+// Nota: Assicurati di installare questa libreria
 // npm install emoji-picker-react
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 
@@ -300,6 +300,34 @@ const MessageArea = ({ selectedUser, onBackClick, isMobile }: MessageAreaProps) 
     }
   };
 
+  // Componente per generare lo sfondo con simboli e icone
+  const ChatBackground = () => (
+    <Box
+      sx={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        pointerEvents: 'none',
+        zIndex: 0,
+        opacity: 0.03,
+        overflow: 'hidden',
+        backgroundImage: `
+          radial-gradient(circle at 25px 25px, #000 2px, transparent 0),
+          radial-gradient(circle at 75px 75px, #000 2px, transparent 0),
+          radial-gradient(circle at 65px 40px, #000 2px, transparent 0),
+          radial-gradient(circle at 40px 65px, #000 2px, transparent 0),
+          linear-gradient(45deg, transparent 65%, #000 0),
+          linear-gradient(135deg, transparent 65%, #000 0),
+          linear-gradient(225deg, transparent 65%, #000 0),
+          linear-gradient(315deg, transparent 65%, #000 0)
+        `,
+        backgroundSize: '100px 100px'
+      }}
+    />
+  );
+
   return (
     <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%' }}>
       {selectedUser ? (
@@ -353,36 +381,43 @@ const MessageArea = ({ selectedUser, onBackClick, isMobile }: MessageAreaProps) 
               bgcolor: 'background.default',
               display: 'flex',
               flexDirection: 'column',
+              position: 'relative',
             }}
           >
-            {loadingMessages ? (
-              <Box
-                sx={{
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  height: '100%',
-                }}
-              >
-                <CircularProgress />
-              </Box>
-            ) : messages.length === 0 ? (
-              <Box
-                sx={{
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  height: '100%',
-                }}
-              >
-                <Typography variant="body1" color="text.secondary">
-                  Non ci sono messaggi. Inizia una conversazione!
-                </Typography>
-              </Box>
-            ) : (
-              renderMessageGroups()
-            )}
-            <div ref={messagesEndRef} />
+            {/* Sfondo decorativo */}
+            <ChatBackground />
+            
+            {/* Contenuto dei messaggi */}
+            <Box sx={{ position: 'relative', zIndex: 1 }}>
+              {loadingMessages ? (
+                <Box
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    height: '100%',
+                  }}
+                >
+                  <CircularProgress />
+                </Box>
+              ) : messages.length === 0 ? (
+                <Box
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    height: '100%',
+                  }}
+                >
+                  <Typography variant="body1" color="text.secondary">
+                    Non ci sono messaggi. Inizia una conversazione!
+                  </Typography>
+                </Box>
+              ) : (
+                renderMessageGroups()
+              )}
+              <div ref={messagesEndRef} />
+            </Box>
           </Box>
 
           {/* Input messaggi */}
@@ -395,6 +430,8 @@ const MessageArea = ({ selectedUser, onBackClick, isMobile }: MessageAreaProps) 
               display: 'flex',
               alignItems: 'center',
               gap: 1,
+              position: 'relative',
+              zIndex: 2,
             }}
           >
             <input
@@ -588,9 +625,13 @@ const MessageArea = ({ selectedUser, onBackClick, isMobile }: MessageAreaProps) 
             alignItems: 'center',
             height: '100%',
             bgcolor: 'background.default',
+            position: 'relative',
           }}
         >
-          <Box sx={{ textAlign: 'center', p: 3 }}>
+          {/* Sfondo decorativo anche nella schermata iniziale */}
+          <ChatBackground />
+          
+          <Box sx={{ textAlign: 'center', p: 3, position: 'relative', zIndex: 1 }}>
             <Typography variant="h5" gutterBottom>
               Benvenuto in RealTime Chat
             </Typography>
