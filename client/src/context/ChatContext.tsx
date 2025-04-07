@@ -12,6 +12,7 @@ interface ChatContextType {
   users: User[];
   onlineUsers: number[];
   messages: Message[];
+  setMessages: React.Dispatch<React.SetStateAction<Message[]>>; // Aggiungi questa riga
   socket: Socket | null;
   incomingCall: { from: number; username: string; signal: any } | null;
   isCallActive: boolean;
@@ -29,11 +30,13 @@ interface ChatContextType {
   markMessagesAsRead: (senderId: number) => void;
 }
 
+
 export const ChatContext = createContext<ChatContextType>({
   selectedUser: null,
   users: [],
   onlineUsers: [],
   messages: [],
+  setMessages: () => {}, // Aggiungi questa riga
   socket: null,
   incomingCall: null,
   isCallActive: false,
@@ -57,7 +60,7 @@ interface ChatProviderProps {
 
 export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   const { user: currentUser, token } = useContext(AuthContext);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [selectedUser, setSelectedUserState] = useState<User | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [onlineUsers, setOnlineUsers] = useState<number[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -69,17 +72,43 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   const [isCallActive, setIsCallActive] = useState(false);
   const [unreadCounts, setUnreadCounts] = useState<Record<number, number>>({});
   
-  // Usa un ref per tenere traccia dell'ultimo user selezionato senza causare loop
-  const lastSelectedUserRef = useRef<number | null>(null);
-  // Usa un ref per tenere traccia se l'effetto di caricamento messaggi è già in esecuzione
+  // Refs per gestire stati e prevenire loop
+  const selectedUserRef = useRef<User | null>(null);
+  const pendingMessagesRef = useRef<Record<string, boolean>>({});
+  const sentMessagesRef = useRef<Set<string>>(new Set());
+  const messageLoadedForUserRef = useRef<number | null>(null);
+  const isFirstLoadRef = useRef(true);
   const isLoadingMessagesRef = useRef(false);
+  const lastRefreshTimeRef = useRef(0);
+  const lastMessageMarkTimeRef = useRef<Record<number, number>>({});
+  
+  // Funzione sicura per impostare l'utente selezionato
+  const setSelectedUser = useCallback((user: User | null) => {
+    // Reset dello stato dei messaggi quando l'utente selezionato cambia
+    if (user === null || (selectedUserRef.current && user && selectedUserRef.current.id !== user.id)) {
+      setMessages([]);
+      setPage(1);
+      setHasMoreMessages(false);
+      messageLoadedForUserRef.current = null;
+    }
+    
+    selectedUserRef.current = user;
+    setSelectedUserState(user);
+  }, []);
 
   // Funzione per refresh utenti
   const refreshUsers = useCallback(async () => {
+    // Previeni richieste troppo frequenti (minimo 5 secondi tra richieste)
+    const now = Date.now();
+    if (now - lastRefreshTimeRef.current < 5000) {
+      return;
+    }
+    
+    lastRefreshTimeRef.current = now;
+    
     if (!token) return;
 
     try {
-      console.log('Refreshing users list');
       const response = await axios.get('/api/users', {
         headers: {
           Authorization: `Bearer ${token}`
@@ -94,36 +123,40 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       
       setUsers(updatedUsers);
       
-      // Se abbiamo un utente selezionato, aggiorniamo i suoi dati
-      if (selectedUser) {
-        const updatedSelectedUser = updatedUsers.find((u: { id: number; }) => u.id === selectedUser.id);
+      // Aggiorna anche l'utente selezionato se necessario
+      if (selectedUserRef.current) {
+        const updatedSelectedUser = updatedUsers.find((u: User) => u.id === selectedUserRef.current?.id);
         if (updatedSelectedUser) {
-          setSelectedUser(updatedSelectedUser);
+          selectedUserRef.current = updatedSelectedUser;
+          setSelectedUserState(updatedSelectedUser);
         }
       }
     } catch (error) {
       console.error('Error refreshing users:', error);
     }
-  }, [token, onlineUsers, selectedUser]);
+  }, [token, onlineUsers]);
 
   // Inizializza socket
   useEffect(() => {
-    if (token) {
-      console.log('Initializing socket with token');
-      const newSocket = initializeSocket(token);
-      setSocket(newSocket);
+    if (!token) return;
+    
+    console.log('Initializing socket with token');
+    const newSocket = initializeSocket(token);
+    setSocket(newSocket);
 
-      return () => {
-        console.log('Disconnecting socket');
-        disconnectSocket();
-      };
-    }
+    return () => {
+      console.log('Disconnecting socket');
+      disconnectSocket();
+    };
   }, [token]);
 
-  // Carica utenti
+  // Carica utenti all'inizio
   useEffect(() => {
-    refreshUsers();
-  }, [refreshUsers]);
+    if (token && isFirstLoadRef.current) {
+      isFirstLoadRef.current = false;
+      refreshUsers();
+    }
+  }, [refreshUsers, token]);
 
   // Gestione utenti online
   useEffect(() => {
@@ -141,21 +174,20 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       );
       
       // Aggiorna anche l'utente selezionato se necessario
-      if (selectedUser && !userIds.includes(selectedUser.id) && selectedUser.status === UserStatus.ONLINE) {
-        setSelectedUser(prev => {
-          if (!prev) return null;
-          return { ...prev, status: UserStatus.OFFLINE };
-        });
-      } else if (selectedUser && userIds.includes(selectedUser.id) && selectedUser.status === UserStatus.OFFLINE) {
-        setSelectedUser(prev => {
-          if (!prev) return null;
-          return { ...prev, status: UserStatus.ONLINE };
-        });
+      if (selectedUserRef.current) {
+        const newStatus = userIds.includes(selectedUserRef.current.id) 
+          ? UserStatus.ONLINE 
+          : UserStatus.OFFLINE;
+        
+        if (selectedUserRef.current.status !== newStatus) {
+          const updatedUser = {...selectedUserRef.current, status: newStatus};
+          selectedUserRef.current = updatedUser;
+          setSelectedUserState(updatedUser);
+        }
       }
     };
 
     const handleUnreadCounts = (counts: Record<number, number>) => {
-      console.log('Received unread counts:', counts);
       setUnreadCounts(counts);
     };
 
@@ -169,42 +201,24 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       socket.off('onlineUsers', handleOnlineUsers);
       socket.off('unreadCounts', handleUnreadCounts);
     };
-  }, [socket, selectedUser]);
-
-  // Marca messaggi come letti quando si seleziona un utente
-  useEffect(() => {
-    if (!selectedUser || !socket || !socket.connected) return;
-    
-    console.log(`Marking messages from ${selectedUser.username} as read`);
-    socket.emit('chat_open', {
-      userId: currentUser?.id,
-      withUserId: selectedUser.id
-    });
-    
-    // Aggiorna stato locale dei messaggi non letti
-    setUnreadCounts(prev => ({
-      ...prev,
-      [selectedUser.id]: 0
-    }));
-    
-  }, [selectedUser, socket, currentUser]);
+  }, [socket]);
 
   // Carica messaggi quando l'utente selezionato cambia
   useEffect(() => {
-    // Evita loop e caricamenti duplicati
     if (!selectedUser || !token) return;
-  
-    // Memorizza l'ID dell'utente selezionato per evitare ricaricamenti inutili
-    const selectedUserId = selectedUser.id;
+    
+    // Previeni caricamenti multipli per lo stesso utente
+    if (selectedUser.id === messageLoadedForUserRef.current) return;
     
     const fetchMessages = async () => {
-      if (loadingMessages) return; // Previene chiamate simultanee
+      if (isLoadingMessagesRef.current) return;
       
+      isLoadingMessagesRef.current = true;
       setLoadingMessages(true);
-      setPage(1);
+      
       try {
-        console.log(`Fetching messages with user ${selectedUserId}`);
-        const response = await axios.get(`/api/messages/${selectedUserId}?page=1&limit=50`, {
+        console.log(`Fetching messages with user ${selectedUser.id}`);
+        const response = await axios.get(`/api/messages/${selectedUser.id}?page=1&limit=50`, {
           headers: {
             Authorization: `Bearer ${token}`
           }
@@ -217,31 +231,40 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
           response.data.pagination && 
           response.data.pagination.page < response.data.pagination.pages
         );
+        
+        // Aggiorna il riferimento all'utente di cui abbiamo caricato i messaggi
+        messageLoadedForUserRef.current = selectedUser.id;
+        
+        // Segna messaggi come letti
+        if (socket && socket.connected) {
+          const now = Date.now();
+          if (now - (lastMessageMarkTimeRef.current[selectedUser.id] || 0) > 3000) {
+            lastMessageMarkTimeRef.current[selectedUser.id] = now;
+            socket.emit('markAsRead', { senderId: selectedUser.id });
+          }
+        }
       } catch (error) {
         console.error('Error fetching messages:', error);
       } finally {
         setLoadingMessages(false);
+        isLoadingMessagesRef.current = false;
       }
     };
-  
+    
     fetchMessages();
-    
-    // Segna i messaggi come letti SOLO UNA VOLTA quando si seleziona un utente
-    if (socket && socket.connected) {
-      console.log(`Marking messages from ${selectedUser.username} as read`);
-      socket.emit('markAsRead', { senderId: selectedUserId });
-      
-      // Richiedi gli unread counts
-      socket.emit('getUnreadCounts');
-    }
-    
-    // Importante: questa funzione non deve essere eseguita ad ogni render
-  }, [selectedUser?.id, token]);
+  }, [selectedUser, token, socket]);
 
   // Funzione per segnare messaggi come letti
   const markMessagesAsRead = useCallback((senderId: number) => {
     if (!socket || !socket.connected) return;
     
+    // Previeni richieste troppo frequenti per lo stesso utente
+    const now = Date.now();
+    if (now - (lastMessageMarkTimeRef.current[senderId] || 0) < 3000) {
+      return;
+    }
+    
+    lastMessageMarkTimeRef.current[senderId] = now;
     socket.emit('markAsRead', { senderId });
     
     // Aggiorna stato locale
@@ -256,12 +279,18 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     if (!socket) return;
 
     const handleNewMessage = (message: Message) => {
-      console.log('New message received:', message);
+      // Genera un ID univoco per questo messaggio
+      const messageKey = `${message.senderId}-${message.receiverId}-${message.content}-${message.createdAt}`;
       
-      // Se il messaggio è da un altro utente, incrementa contatore non letti
+      // Se è un messaggio già gestito, non fare nulla
+      if (sentMessagesRef.current.has(messageKey)) {
+        return;
+      }
+      
+      // Se il messaggio è da un altro utente, gestisci notifiche e contatori
       if (message.senderId !== currentUser?.id) {
         // Aggiorna contatori non letti se non è la conversazione corrente
-        if (!selectedUser || selectedUser.id !== message.senderId) {
+        if (!selectedUserRef.current || selectedUserRef.current.id !== message.senderId) {
           setUnreadCounts(prev => ({
             ...prev,
             [message.senderId]: (prev[message.senderId] || 0) + 1
@@ -278,36 +307,69 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
           // Se è la conversazione corrente, segna come letto
           markMessagesAsRead(message.senderId);
         }
+      } else {
+        // Se è un messaggio che ho inviato io, controlla se è un messaggio pendente
+        const tempId = `temp-${Math.abs(message.id)}`;
+        if (pendingMessagesRef.current[tempId]) {
+          // Aggiorniamo il messaggio temporaneo con il messaggio reale dal server
+          setMessages(prevMessages => 
+            prevMessages.map(msg => 
+              (msg.id < 0 && msg.content === message.content && 
+              msg.senderId === message.senderId && 
+              msg.receiverId === message.receiverId)
+                ? message 
+                : msg
+            )
+          );
+          
+          // Rimuovi il messaggio dalla lista dei pendenti
+          delete pendingMessagesRef.current[tempId];
+          sentMessagesRef.current.add(messageKey);
+          return; // Non aggiungere il messaggio di nuovo
+        }
       }
       
       // Aggiungi solo se riguarda la conversazione corrente
       if (
-        selectedUser &&
-        ((message.senderId === currentUser?.id && message.receiverId === selectedUser.id) ||
-        (message.senderId === selectedUser.id && message.receiverId === currentUser?.id))
+        selectedUserRef.current &&
+        ((message.senderId === currentUser?.id && message.receiverId === selectedUserRef.current.id) ||
+        (message.senderId === selectedUserRef.current.id && message.receiverId === currentUser?.id))
       ) {
         setMessages(prevMessages => {
           // Controlla se il messaggio esiste già
-          const exists = prevMessages.some(m => m.id === message.id);
+          const exists = prevMessages.some(m => 
+            m.id === message.id ||
+            (m.content === message.content && 
+            m.senderId === message.senderId && 
+            m.receiverId === message.receiverId &&
+            Math.abs(new Date(m.createdAt).getTime() - new Date(message.createdAt).getTime()) < 1000)
+          );
+          
           if (exists) {
             return prevMessages;
           }
+          
+          // Aggiungi il messaggio
+          sentMessagesRef.current.add(messageKey);
           return [...prevMessages, message];
         });
       }
     };
 
     const handleMessagesRead = (data: { by: number, timestamp: string }) => {
-      console.log('Messages read by:', data.by);
-      
       // Aggiorna lo stato locale dei messaggi
-      if (selectedUser && data.by === selectedUser.id) {
+      if (selectedUserRef.current && data.by === selectedUserRef.current.id) {
         setMessages(prev => prev.map(msg => 
           msg.senderId === currentUser?.id && !msg.isRead 
             ? { ...msg, isRead: true, readAt: data.timestamp }
             : msg
         ));
       }
+    };
+
+    const handleMessageDeleted = (data: { messageId: number }) => {
+      // Rimuovi il messaggio eliminato dall'array di messaggi
+      setMessages(prev => prev.filter(msg => msg.id !== data.messageId));
     };
 
     const handleIncomingCall = (data: { from: number; username: string; signal: any }) => {
@@ -352,6 +414,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
 
     socket.on('newMessage', handleNewMessage);
     socket.on('messagesRead', handleMessagesRead);
+    socket.on('messageDeleted', handleMessageDeleted);
     socket.on('incomingCall', handleIncomingCall);
     socket.on('callRejected', handleCallRejected);
     socket.on('callEnded', handleCallEnded);
@@ -359,24 +422,28 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     return () => {
       socket.off('newMessage', handleNewMessage);
       socket.off('messagesRead', handleMessagesRead);
+      socket.off('messageDeleted', handleMessageDeleted);
       socket.off('incomingCall', handleIncomingCall);
       socket.off('callRejected', handleCallRejected);
       socket.off('callEnded', handleCallEnded);
     };
-  }, [socket, selectedUser, currentUser, markMessagesAsRead]);
+  }, [socket, currentUser, markMessagesAsRead]);
 
   // Funzione per inviare messaggi
   const sendMessage = useCallback(async (content: string) => {
-    if (!selectedUser || !currentUser || !token) {
+    if (!selectedUserRef.current || !currentUser || !token || !socket) {
       return;
     }
 
+    // Generiamo un ID temporaneo unico
+    const tempId = -Date.now();
+    
     // Ottimisticamente aggiungi il messaggio alla UI
     const optimisticMessage: Message = {
-      id: -Date.now(),
+      id: tempId,
       content,
       senderId: currentUser.id,
-      receiverId: selectedUser.id,
+      receiverId: selectedUserRef.current.id,
       isRead: false,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -387,47 +454,87 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       }
     };
     
+    // Generare una chiave univoca per questo messaggio
+    const messageKey = `${optimisticMessage.senderId}-${optimisticMessage.receiverId}-${content}-${optimisticMessage.createdAt}`;
+    
+    // Aggiungi il messaggio alla lista dei messaggi inviati per evitare duplicati
+    sentMessagesRef.current.add(messageKey);
+    
+    // Aggiungi il messaggio ottimistico allo stato
     setMessages(prev => [...prev, optimisticMessage]);
     
+    // Registra il messaggio come pendente
+    pendingMessagesRef.current[`temp-${Math.abs(tempId)}`] = true;
+    
     try {
-      // Invia tramite socket se possibile
-      if (socket && socket.connected) {
+      // Invia tramite socket
+      if (socket.connected) {
         socket.emit('sendMessage', {
           content,
           senderId: currentUser.id,
-          receiverId: selectedUser.id
+          receiverId: selectedUserRef.current.id
         });
+      } else {
+        throw new Error('Socket not connected');
       }
+    } catch (error) {
+      console.error('Error sending message:', error);
       
-      // Salva tramite API
-      const response = await axios.post('/api/messages', {
-        content,
-        receiverId: selectedUser.id
-      }, {
+      // Rimuovi messaggio ottimistico in caso di errore
+      setMessages(prev => prev.filter(msg => msg.id !== tempId));
+      delete pendingMessagesRef.current[`temp-${Math.abs(tempId)}`];
+      sentMessagesRef.current.delete(messageKey);
+      
+      alert('Failed to send message. Please try again.');
+    }
+  }, [currentUser, socket, token]);
+
+  // Nuova funzione per eliminare messaggi
+  const deleteMessage = useCallback(async (messageId: number) => {
+    if (!currentUser || !token || !socket || !socket.connected) {
+      return;
+    }
+
+    try {
+      // Aggiorna ottimisticamente l'UI rimuovendo il messaggio
+      setMessages(prev => prev.filter(msg => msg.id !== messageId));
+      
+      // Invia richiesta di eliminazione al server
+      const response = await axios.delete(`/api/messages/${messageId}`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
       });
       
-      // Sostituisci il messaggio ottimistico
-      setMessages(prevMessages => 
-        prevMessages.map(msg => 
-          msg.id === optimisticMessage.id ? response.data.data : msg
-        )
-      );
+      // Notifica altri utenti dell'eliminazione tramite socket
+      socket.emit('deleteMessage', { messageId });
+      
+      console.log('Message deleted successfully', response.data);
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error('Error deleting message:', error);
       
-      // Rimuovi messaggio ottimistico in caso di errore
-      setMessages(prev => prev.filter(msg => msg.id !== optimisticMessage.id));
+      // In caso di errore, recupera i messaggi
+      if (selectedUserRef.current) {
+        try {
+          const response = await axios.get(`/api/messages/${selectedUserRef.current.id}?page=1&limit=50`, {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          });
+          
+          setMessages(response.data.messages || []);
+        } catch (err) {
+          console.error('Error reloading messages:', err);
+        }
+      }
       
-      alert('Failed to send message. Please try again.');
+      alert('Failed to delete message. Please try again.');
     }
-  }, [currentUser, selectedUser, socket, token]);
+  }, [currentUser, socket, token]);
 
   // Carica altri messaggi
   const loadMoreMessages = useCallback(async () => {
-    if (!selectedUser || !token || !hasMoreMessages || loadingMessages || isLoadingMessagesRef.current) {
+    if (!selectedUserRef.current || !token || !hasMoreMessages || loadingMessages || isLoadingMessagesRef.current) {
       return;
     }
 
@@ -437,7 +544,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     try {
       const nextPage = page + 1;
       
-      const response = await axios.get(`/api/messages/${selectedUser.id}?page=${nextPage}&limit=50`, {
+      const response = await axios.get(`/api/messages/${selectedUserRef.current.id}?page=${nextPage}&limit=50`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -445,7 +552,13 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       
       const newMessages = response.data.messages || [];
       
-      setMessages(prevMessages => [...newMessages, ...prevMessages]);
+      setMessages(prevMessages => {
+        // Filtra messaggi duplicati prima di aggiungerli
+        const existingIds = new Set(prevMessages.map(m => m.id));
+        const uniqueNewMessages = newMessages.filter((m: { id: number; }) => !existingIds.has(m.id));
+        return [...uniqueNewMessages, ...prevMessages];
+      });
+      
       setPage(nextPage);
       setHasMoreMessages(
         response.data.pagination && 
@@ -457,26 +570,26 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       setLoadingMessages(false);
       isLoadingMessagesRef.current = false;
     }
-  }, [selectedUser, token, hasMoreMessages, loadingMessages, page]);
+  }, [token, hasMoreMessages, loadingMessages, page]);
 
   // Funzioni per videochiamate
   const initiateCall = useCallback(() => {
-    if (!socket || !socket.connected || !selectedUser) {
+    if (!socket || !socket.connected || !selectedUserRef.current) {
       alert('Cannot initiate call: connection issue or no selected user');
       return;
     }
     
-    if (selectedUser.status !== UserStatus.ONLINE) {
+    if (selectedUserRef.current.status !== UserStatus.ONLINE) {
       alert('Cannot call: User is offline');
       return;
     }
     
     socket.emit('callUser', {
-      to: selectedUser.id
+      to: selectedUserRef.current.id
     });
     
     setIsCallActive(true);
-  }, [socket, selectedUser]);
+  }, [socket]);
 
   const acceptCall = useCallback(() => {
     if (!socket || !socket.connected || !incomingCall) {
@@ -492,7 +605,8 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     // Trova l'utente che sta chiamando
     const caller = users.find(u => u.id === incomingCall.from);
     if (caller) {
-      setSelectedUser(caller);
+      selectedUserRef.current = caller;
+      setSelectedUserState(caller);
     }
     
     setIsCallActive(true);
@@ -518,43 +632,44 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   }, [socket, incomingCall]);
 
   const endCall = useCallback(() => {
-    if (!socket || !socket.connected || !selectedUser) {
+    if (!socket || !socket.connected || !selectedUserRef.current) {
       return;
     }
     
     socket.emit('endCall', {
-      to: selectedUser.id
+      to: selectedUserRef.current.id
     });
     
     setIsCallActive(false);
-  }, [socket, selectedUser]);
+  }, [socket]);
 
   return (
     <ChatContext.Provider
-      value={{
-        selectedUser,
-        users,
-        onlineUsers,
-        messages,
-        socket,
-        incomingCall,
-        isCallActive,
-        loadingMessages,
-        hasMoreMessages,
-        unreadCounts,
-        setSelectedUser,
-        sendMessage,
-        loadMoreMessages,
-        initiateCall,
-        acceptCall,
-        rejectCall,
-        endCall,
-        refreshUsers,
-        markMessagesAsRead,
-      }}
-    >
-      {children}
-    </ChatContext.Provider>
+    value={{
+      selectedUser,
+      users,
+      onlineUsers,
+      messages,
+      setMessages, // Aggiungi questa riga
+      socket,
+      incomingCall,
+      isCallActive,
+      loadingMessages,
+      hasMoreMessages,
+      unreadCounts,
+      setSelectedUser,
+      sendMessage,
+      loadMoreMessages,
+      initiateCall,
+      acceptCall,
+      rejectCall,
+      endCall,
+      refreshUsers,
+      markMessagesAsRead,
+    }}
+  >
+    {children}
+  </ChatContext.Provider>
   );
 };
 

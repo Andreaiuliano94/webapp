@@ -1,9 +1,11 @@
 // client/src/components/chat/MessageItem.tsx
-import { useState } from 'react';
+import { useState, useContext } from 'react';
 import { Box, Typography, Avatar, Paper, IconButton, Menu, MenuItem } from '@mui/material';
 import { MoreVert as MoreVertIcon, Check, DoneAll } from '@mui/icons-material';
 import { Message } from '../../types/message';
 import { format } from 'date-fns';
+import { ChatContext } from '../../context/ChatContext';
+import axios from 'axios';
 
 interface MessageItemProps {
   message: Message;
@@ -12,6 +14,7 @@ interface MessageItemProps {
 
 const MessageItem = ({ message, isOwnMessage }: MessageItemProps) => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const { messages, setMessages } = useContext(ChatContext);
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLButtonElement>) => {
     setAnchorEl(event.currentTarget);
@@ -23,6 +26,46 @@ const MessageItem = ({ message, isOwnMessage }: MessageItemProps) => {
 
   const formatMessageTime = (dateString: string) => {
     return format(new Date(dateString), 'h:mm a');
+  };
+
+  // Gestisci l'eliminazione del messaggio
+  const handleDeleteMessage = async () => {
+    try {
+      // Ottimisticamente rimuovi il messaggio dalla UI
+      setMessages(messages.filter(msg => msg.id !== message.id));
+      
+      // Chiudi il menu
+      handleMenuClose();
+      
+      // Opzionale: chiamata API per eliminare il messaggio permanentemente
+      const token = localStorage.getItem('token');
+      if (token) {
+        await axios.delete(`/api/messages/${message.id}`, {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Errore durante l\'eliminazione del messaggio:', error);
+      // In caso di errore, ripristina il messaggio nella lista
+      // Questo è opzionale e dipende dal comportamento desiderato
+    }
+  };
+
+  // Gestisci la copia del messaggio
+  const handleCopyMessage = () => {
+    if (message.content) {
+      navigator.clipboard.writeText(message.content);
+    }
+    handleMenuClose();
+  };
+
+  // Gestisci l'inoltro del messaggio (per ora solo chiude il menu)
+  const handleForwardMessage = () => {
+    // Qui dovresti implementare la logica per l'inoltro del messaggio
+    // Per ora chiudiamo solo il menu
+    handleMenuClose();
   };
 
   // Handle different types of message content
@@ -206,10 +249,10 @@ const MessageItem = ({ message, isOwnMessage }: MessageItemProps) => {
           open={Boolean(anchorEl)}
           onClose={handleMenuClose}
         >
-          <MenuItem onClick={handleMenuClose}>Copy</MenuItem>
-          <MenuItem onClick={handleMenuClose}>Forward</MenuItem>
+          <MenuItem onClick={handleCopyMessage}>Copia</MenuItem>
+          <MenuItem onClick={handleForwardMessage}>Inoltra</MenuItem>
           {isOwnMessage && (
-            <MenuItem onClick={handleMenuClose}>Delete</MenuItem>
+            <MenuItem onClick={handleDeleteMessage}>Elimina</MenuItem>
           )}
         </Menu>
       </Box>

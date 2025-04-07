@@ -25,7 +25,6 @@ interface VideoCallProps {
 
 const VideoCall = ({ isOpen, onClose, user, socket, isIncoming, signal }: VideoCallProps) => {
   const [stream, setStream] = useState<MediaStream | null>(null);
-  const [_remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
@@ -33,32 +32,23 @@ const VideoCall = ({ isOpen, onClose, user, socket, isIncoming, signal }: VideoC
   
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
-  const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
-  const isComponentMounted = useRef(true);
-  const callHandlersSetUp = useRef(false);
-
-  // Configurazione per WebRTC
-  const configuration = {
-    iceServers: [
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' }
-    ]
-  };
-
-  // Pulisci risorse
+  const streamRef = useRef<MediaStream | null>(null);
   
-const cleanup = () => {
-  console.log('Cleaning up video call resources');
-  
-  // Chiudi stream locali in modo più robusto
-  if (stream) {
-    console.log('Stopping all media tracks');
-    stream.getTracks().forEach(track => {
-      console.log(`Stopping track: ${track.kind}`, track);
-      track.stop();
-    });
+  // Cleanup function to properly release all resources
+  const cleanup = () => {
+    console.log('Performing cleanup');
     
-    // Assicurati che i riferimenti ai video siano cancellati
+    // Stop all media tracks
+    if (streamRef.current) {
+      const tracks = streamRef.current.getTracks();
+      tracks.forEach(track => {
+        console.log(`Stopping ${track.kind} track`);
+        track.stop();
+      });
+      streamRef.current = null;
+    }
+    
+    // Clear video elements
     if (localVideoRef.current) {
       localVideoRef.current.srcObject = null;
     }
@@ -67,302 +57,18 @@ const cleanup = () => {
       remoteVideoRef.current.srcObject = null;
     }
     
-    // Rimuovi anche i riferimenti agli stream
+    // Reset state
     setStream(null);
-    setRemoteStream(null);
-  }
-  
-  // Chiudi peer connection
-  if (peerConnectionRef.current) {
-    console.log('Closing peer connection');
-    peerConnectionRef.current.close();
-    peerConnectionRef.current = null;
-  }
-};
-  // Rimuovi listener socket
-  const cleanupSocketListeners = () => {
-    socket.off('callAccepted');
-    socket.off('ice-candidate');
-    socket.off('callRejected');
-    socket.off('callEnded');
   };
   
-  // Gestisci fine chiamata
-  // E nell'handleEndCall aggiungi:
-const handleEndCall = () => {
-  try {
+  // Handler for ending the call
+  const handleEndCall = () => {
     console.log('Ending call');
-    socket.emit('endCall', { to: user.id });
-  } catch (err) {
-    console.error('Error signaling end call:', err);
-  } finally {
-    // Forzatamente eseguire cleanup
     cleanup();
-    
-    // Induzione ulteriore a rilasciare le risorse
-    setTimeout(() => {
-      if (stream) {
-        stream.getTracks().forEach(track => {
-          if (track.readyState === 'live') {
-            console.log('Forcing track stop', track);
-            track.stop();
-          }
-        });
-      }
-      onClose();
-    }, 100);
-  }
-};
-
-  // Inizializza stream e peer connection
-  useEffect(() => {
-    if (!isOpen) return;
-
-    isComponentMounted.current = true;
-    
-    const initializeCall = async () => {
-      try {
-        // Ottieni accesso ai media locali
-        console.log('Requesting user media');
-        const mediaStream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: true
-        });
-        
-        if (!isComponentMounted.current) {
-          mediaStream.getTracks().forEach(track => track.stop());
-          return;
-        }
-        
-        console.log('Got media stream:', mediaStream.id);
-        setStream(mediaStream);
-        
-        // Assegna stream al video locale
-        if (localVideoRef.current) {
-          console.log('Setting local video stream');
-          localVideoRef.current.srcObject = mediaStream;
-        }
-
-        // Inizializza RTCPeerConnection
-        console.log('Creating RTCPeerConnection');
-        const peerConnection = new RTCPeerConnection(configuration);
-        peerConnectionRef.current = peerConnection;
-        
-        // Crea stream remoto
-        const newRemoteStream = new MediaStream();
-        setRemoteStream(newRemoteStream);
-        
-        if (remoteVideoRef.current) {
-          remoteVideoRef.current.srcObject = newRemoteStream;
-        }
-        
-        // Aggiungi le tracce locali alla connessione
-        mediaStream.getTracks().forEach(track => {
-          console.log(`Adding ${track.kind} track to peer connection`);
-          peerConnection.addTrack(track, mediaStream);
-        });
-        
-        // Gestisci flusso remoto in arrivo
-        peerConnection.ontrack = (event) => {
-          console.log('Remote track received:', event.track.kind);
-          event.streams[0].getTracks().forEach(track => {
-            console.log(`Adding remote ${track.kind} track to remote stream`);
-            newRemoteStream.addTrack(track);
-          });
-          setConnectionStatus('connected');
-        };
-        
-        // Gestisci ICE candidates
-        peerConnection.onicecandidate = (event) => {
-          if (event.candidate) {
-            console.log('Generated ICE candidate');
-            socket.emit('ice-candidate', {
-              to: user.id,
-              candidate: event.candidate
-            });
-          }
-        };
-        
-        // Gestisci cambiamenti dello stato della connessione
-        peerConnection.oniceconnectionstatechange = () => {
-          console.log('ICE connection state:', peerConnection.iceConnectionState);
-          if (peerConnection.iceConnectionState === 'connected' || 
-              peerConnection.iceConnectionState === 'completed') {
-            setConnectionStatus('connected');
-          } else if (peerConnection.iceConnectionState === 'disconnected' ||
-                     peerConnection.iceConnectionState === 'failed' ||
-                     peerConnection.iceConnectionState === 'closed') {
-            setConnectionStatus('disconnected');
-          }
-        };
-
-        // Setup socket listeners solo una volta
-        if (!callHandlersSetUp.current) {
-          setupCallHandlers();
-          callHandlersSetUp.current = true;
-        }
-        
-        // Se la chiamata è in arrivo, gestisci il segnale remoto
-        if (isIncoming && signal) {
-          handleIncomingCall(signal, peerConnection);
-        } else {
-          // Se è una chiamata in uscita, crea un'offerta
-          createOffer(peerConnection);
-        }
-      } catch (err) {
-        console.error('Failed to initialize call:', err);
-        if (isComponentMounted.current) {
-          setError(`Could not access camera/microphone. ${err instanceof Error ? err.message : 'Please check permissions'}`);
-          setTimeout(() => {
-            if (isComponentMounted.current) {
-              onClose();
-            }
-          }, 3000);
-        }
-      }
-    };
-    
-    // Setup socket event handlers
-    const setupCallHandlers = () => {
-      console.log('Setting up call socket handlers');
-      
-      // Handle call accepted
-      socket.on('callAccepted', async (data) => {
-        try {
-          if (data.from === user.id && data.signal && peerConnectionRef.current) {
-            console.log('Call accepted, received remote description');
-            const rtcSessionDescription = new RTCSessionDescription(data.signal);
-            await peerConnectionRef.current.setRemoteDescription(rtcSessionDescription);
-            setConnectionStatus('connected');
-          }
-        } catch (err) {
-          console.error('Error handling call accepted:', err);
-          if (isComponentMounted.current) {
-            setError('Failed to establish connection');
-          }
-        }
-      });
-      
-      // Handle ICE candidates
-      socket.on('ice-candidate', async (data) => {
-        try {
-          if (data.from === user.id && peerConnectionRef.current) {
-            console.log('Received ICE candidate');
-            const candidate = new RTCIceCandidate(data.candidate);
-            
-            if (peerConnectionRef.current.remoteDescription) {
-              await peerConnectionRef.current.addIceCandidate(candidate);
-            } else {
-              console.log('Skipping ICE candidate - remote description not set');
-            }
-          }
-        } catch (err) {
-          console.error('Error adding ICE candidate:', err);
-        }
-      });
-      
-      // Handle call rejected
-      socket.on('callRejected', (data) => {
-        if (data.userId === user.id) {
-          console.log('Call rejected');
-          if (isComponentMounted.current) {
-            setError('Call was rejected');
-            setTimeout(() => {
-              if (isComponentMounted.current) {
-                onClose();
-              }
-            }, 2000);
-          }
-        }
-      });
-      
-      // Handle call ended
-      socket.on('callEnded', (data) => {
-        if (data.userId === user.id) {
-          console.log('Call ended by peer');
-          if (isComponentMounted.current) {
-            onClose();
-          }
-        }
-      });
-    };
-    
-    // Handle incoming call
-    const handleIncomingCall = async (incomingSignal: RTCSessionDescriptionInit, peerConnection: RTCPeerConnection) => {
-      try {
-        console.log('Processing incoming call signal');
-        await peerConnection.setRemoteDescription(new RTCSessionDescription(incomingSignal));
-        
-        console.log('Creating answer');
-        const answer = await peerConnection.createAnswer();
-        await peerConnection.setLocalDescription(answer);
-        
-        console.log('Sending answer to caller');
-        socket.emit('acceptCall', {
-          to: user.id,
-          signal: peerConnection.localDescription
-        });
-      } catch (err) {
-        console.error('Error handling incoming call:', err);
-        if (isComponentMounted.current) {
-          setError('Failed to answer call');
-        }
-      }
-    };
-    
-    // Create offer for outgoing call
-    const createOffer = async (peerConnection: RTCPeerConnection) => {
-      try {
-        console.log('Creating offer');
-        const offer = await peerConnection.createOffer();
-        await peerConnection.setLocalDescription(offer);
-        
-        console.log('Sending call offer');
-        socket.emit('callUser', {
-          to: user.id,
-          signal: peerConnection.localDescription
-        });
-      } catch (err) {
-        console.error('Error creating offer:', err);
-        if (isComponentMounted.current) {
-          setError('Failed to start call');
-        }
-      }
-    };
-    
-    // Start call initialization
-    initializeCall().catch(err => {
-      console.error('Unhandled error during call initialization:', err);
-      if (isComponentMounted.current) {
-        setError('Call initialization failed');
-      }
-    });
-    
-    // Cleanup on unmount
-    return () => {
-      console.log('Call component unmounting');
-      isComponentMounted.current = false;
-      callHandlersSetUp.current = false;
-      cleanup();
-      cleanupSocketListeners();
-    };
-  }, [isOpen]);
+    onClose();
+  };
   
-  // Ensure socket listeners are set up only once
-  useEffect(() => {
-    if (!socket || !isOpen) return;
-    
-    // No additional setup needed
-    
-    return () => {
-      // Cleanup on effect change
-      if (isComponentMounted.current) {
-        cleanupSocketListeners();
-      }
-    };
-  }, [socket, isOpen]);
-  
-  // Gestisci toggle mute
+  // Toggle microphone mute
   const toggleMute = () => {
     if (stream) {
       const audioTracks = stream.getAudioTracks();
@@ -373,7 +79,7 @@ const handleEndCall = () => {
     }
   };
   
-  // Gestisci toggle video
+  // Toggle video on/off
   const toggleVideo = () => {
     if (stream) {
       const videoTracks = stream.getVideoTracks();
@@ -383,7 +89,69 @@ const handleEndCall = () => {
       setIsVideoOff(!isVideoOff);
     }
   };
-
+  
+  // Initialize media stream when the dialog opens
+  useEffect(() => {
+    // Don't run if dialog is not open
+    if (!isOpen) return;
+    
+    console.log('Initializing media access');
+    
+    let mounted = true;
+    
+    const initializeMedia = async () => {
+      try {
+        console.log('Requesting media access');
+        const mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: true
+        });
+        
+        // Check if component is still mounted
+        if (!mounted) {
+          mediaStream.getTracks().forEach(track => track.stop());
+          return;
+        }
+        
+        console.log('Media access granted');
+        
+        // Store the stream in state and ref
+        setStream(mediaStream);
+        streamRef.current = mediaStream;
+        
+        // Set stream to video elements
+        if (localVideoRef.current) {
+          console.log('Setting local video stream');
+          localVideoRef.current.srcObject = mediaStream;
+        }
+        
+        // To test both screens, we'll set the same stream to remote video
+        // In a real app, this would be the remote peer's stream
+        if (remoteVideoRef.current) {
+          console.log('Setting remote video stream (demo)');
+          remoteVideoRef.current.srcObject = mediaStream;
+        }
+        
+        // Update connection status for UI
+        setConnectionStatus('connected');
+        
+      } catch (err) {
+        console.error('Error accessing media devices:', err);
+        if (mounted) {
+          setError(`Could not access camera/microphone: ${err instanceof Error ? err.message : 'Unknown error'}`);
+        }
+      }
+    };
+    
+    initializeMedia();
+    
+    // Cleanup when component unmounts or dialog closes
+    return () => {
+      mounted = false;
+      cleanup();
+    };
+  }, [isOpen]);
+  
   return (
     <Dialog 
       open={isOpen} 
@@ -397,9 +165,15 @@ const handleEndCall = () => {
           height: '80vh'
         }
       }}
+      TransitionProps={{
+        onExited: () => {
+          // Additional cleanup on dialog exit
+          cleanup();
+        }
+      }}
     >
       <DialogContent sx={{ p: 0, position: 'relative', height: '100%' }}>
-        {/* Bottone chiusura */}
+        {/* Close button */}
         <IconButton
           sx={{ position: 'absolute', top: 8, right: 8, bgcolor: 'rgba(0, 0, 0, 0.5)', zIndex: 2 }}
           onClick={handleEndCall}
@@ -407,7 +181,7 @@ const handleEndCall = () => {
           <CloseIcon sx={{ color: 'white' }} />
         </IconButton>
         
-        {/* Stato connessione ed errori */}
+        {/* Connection status and errors */}
         {connectionStatus === 'connecting' && !error && (
           <Box
             sx={{
@@ -451,7 +225,7 @@ const handleEndCall = () => {
           </Box>
         )}
         
-        {/* Video remoto (grande) */}
+        {/* Remote video (large background) */}
         <Box sx={{ height: '100%', width: '100%', bgcolor: 'black', position: 'relative' }}>
           <video
             ref={remoteVideoRef}
@@ -465,8 +239,8 @@ const handleEndCall = () => {
             }}
           />
           
-           {/* Visualizza nome quando il video è spento */}
-           {connectionStatus !== 'connected' && (
+          {/* Show avatar when not connected */}
+          {connectionStatus !== 'connected' && (
             <Box
               sx={{
                 position: 'absolute',
@@ -501,7 +275,7 @@ const handleEndCall = () => {
           )}
         </Box>
         
-        {/* Video locale (piccolo) */}
+        {/* Local video (small overlay) */}
         <Paper
           elevation={3}
           sx={{
@@ -524,12 +298,12 @@ const handleEndCall = () => {
               width: '100%',
               height: '100%',
               objectFit: 'cover',
-              transform: 'scaleX(-1)', // Effetto specchio
+              transform: 'scaleX(-1)', // Mirror effect
               display: !isVideoOff ? 'block' : 'none'
             }}
           />
           
-          {/* Visualizza avatar quando il video è spento */}
+          {/* Show avatar when video is off */}
           {isVideoOff && (
             <Box
               sx={{
@@ -560,7 +334,7 @@ const handleEndCall = () => {
           )}
         </Paper>
         
-        {/* Controlli chiamata */}
+        {/* Call controls */}
         <Box
           sx={{
             position: 'absolute',

@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Box, Typography, TextField, IconButton, Avatar, Paper, CircularProgress,
-  Divider, AppBar, Toolbar,
+  AppBar, Toolbar,
 } from '@mui/material';
 import {
   Send as SendIcon, ArrowBack as ArrowBackIcon, AttachFile as AttachFileIcon,
@@ -14,6 +14,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useChat } from '../../context/ChatContext';
 import MessageItem from './MessageItem';
 import { format } from 'date-fns';
+
 
 interface MessageAreaProps {
   selectedUser: User | null;

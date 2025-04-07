@@ -128,5 +128,27 @@ export const messageService = {
     });
 
     return { message: newMessage };
+  },
+
+  deleteMessage: async (messageId: number, userId: number) => {
+    // Verifica che il messaggio esista e appartiene all'utente
+    const message = await prisma.message.findFirst({
+      where: {
+        id: messageId,
+        senderId: userId
+      }
+    });
+    
+    if (!message) {
+      throw new Error('Message not found or you are not authorized to delete it');
+    }
+    
+    // Elimina il messaggio
+    await prisma.message.delete({
+      where: { id: messageId }
+    });
+    
+    return { success: true };
   }
 };
+

@@ -85,7 +85,7 @@ export const setupSocketHandlers = (io: Server) => {
       io.emit('onlineUsers', onlineUserIds);
     }
 
-    // Handle sending a new message
+    // Handle sending a new message - MODIFICATA PER RISOLVERE IL PROBLEMA DEI DUPLICATI
     socket.on('sendMessage', async (messageData: {
       content: string;
       senderId: number;
@@ -107,7 +107,7 @@ export const setupSocketHandlers = (io: Server) => {
 
         logger.info(`New message from ${socket.username} to user ${messageData.receiverId}`);
 
-        // Create new message in database
+        // Create new message in database - Lo facciamo una sola volta
         const newMessage = await prisma.message.create({
           data: {
             content: messageData.content,
@@ -277,19 +277,36 @@ export const setupSocketHandlers = (io: Server) => {
     });
 
     // Get unread messages count
-    socket.on('getUnreadCounts', () => {
+    socket.on('getUnreadCounts', async () => {
       try {
         if (!socket.userId) return;
         
-        const userUnreadMap = unreadMessages.get(socket.userId);
-        if (userUnreadMap) {
-          const unreadCounts: Record<number, number> = {};
-          userUnreadMap.forEach((count, senderId) => {
-            unreadCounts[senderId] = count;
-          });
-          
-          socket.emit('unreadCounts', unreadCounts);
-        }
+        // Aggiorniamo le unread counts dal database
+        const unreadMessagesFromDB = await prisma.message.groupBy({
+          by: ['senderId'],
+          where: {
+            receiverId: socket.userId,
+            isRead: false
+          },
+          _count: {
+            id: true
+          }
+        });
+
+        // Aggiorniamo la mappa locale con i dati dal database
+        const userUnreadMap = unreadMessages.get(socket.userId) || new Map<number, number>();
+        unreadMessagesFromDB.forEach(item => {
+          userUnreadMap.set(item.senderId, item._count.id);
+        });
+        unreadMessages.set(socket.userId, userUnreadMap);
+        
+        // Convertiamo la mappa in un oggetto per inviarla via socket
+        const unreadCounts: Record<number, number> = {};
+        userUnreadMap.forEach((count, senderId) => {
+          unreadCounts[senderId] = count;
+        });
+        
+        socket.emit('unreadCounts', unreadCounts);
       } catch (error) {
         logger.error('Error getting unread counts:', error);
       }
@@ -406,39 +423,6 @@ export const setupSocketHandlers = (io: Server) => {
         // Remove user from online users map
         onlineUsers.delete(socket.userId);
     
-        // Broadcast updated online users list to all clients
-        io.emit('onlineUsers', Array.from(onlineUsers.keys()));
-        logger.info(`User ${socket.username} (${socket.userId}) is now OFFLINE`);
-      }
-    });
-    // Handle user activity (ping/pong for status updates)
-    socket.on('userActivity', () => {
-      if (socket.userId) {
-        prisma.user.update({
-          where: { id: socket.userId },
-          data: { lastSeen: new Date() }
-        }).catch(err => {
-          logger.error('Failed to update last seen:', err);
-        });
-      }
-    });
-
-    // Handle disconnection
-    socket.on('disconnect', async () => {
-      logger.info(`Socket disconnected: ${socket.id}`);
-
-      if (socket.userId) {
-        // Update user status to offline
-        await prisma.user.update({
-          where: { id: socket.userId },
-          data: { status: 'OFFLINE', lastSeen: new Date() }
-        }).catch(err => {
-          logger.error('Failed to update user status:', err);
-        });
-
-        // Remove user from online users map
-        onlineUsers.delete(socket.userId);
-
         // Broadcast updated online users list to all clients
         io.emit('onlineUsers', Array.from(onlineUsers.keys()));
         logger.info(`User ${socket.username} (${socket.userId}) is now OFFLINE`);

@@ -7,17 +7,27 @@ import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider, CssBaseline } from '@mui/material';
 import theme from './theme/theme';
 import './index.css';
-import './polyfill'
+import './polyfill';
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
+// Assicurati che il container esista
+const rootElement = document.getElementById('root');
+if (!rootElement) throw new Error('Failed to find the root element');
+
+// Usa createRoot con gestione errori
+const root = ReactDOM.createRoot(rootElement);
+
+// Renderizza con error boundary
+root.render(
   <React.StrictMode>
-    <BrowserRouter>
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
-        <AuthProvider>
-          <App />
-        </AuthProvider>
-      </ThemeProvider>
-    </BrowserRouter>
+    <React.Fragment>
+      <BrowserRouter>
+        <ThemeProvider theme={theme}>
+          <CssBaseline />
+          <AuthProvider>
+            <App />
+          </AuthProvider>
+        </ThemeProvider>
+      </BrowserRouter>
+    </React.Fragment>
   </React.StrictMode>
 );

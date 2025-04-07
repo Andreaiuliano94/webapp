@@ -5,7 +5,8 @@ import UserList from './UserList';
 import MessageArea from './MessageArea';
 import { useChat } from '../../context/ChatContext';
 import { useAuth } from '../../hooks/useAuth';
-import VideoCall from '../videocall/VideoCall';
+// Cambia l'importazione per evitare conflitti di nome
+import VideoCallComponent from '../videocall/VideoCall'; // Rinominato l'import
 import IncomingCallDialog from '../videocall/IncomingCallDialog';
 
 const ChatLayout = () => {
@@ -30,16 +31,25 @@ const ChatLayout = () => {
   
   // Periodically refresh users list
   useEffect(() => {
+    if (!refreshUsers) return;
+    
     const interval = setInterval(() => {
-      refreshUsers().catch(err => {
-        console.error('Failed to refresh users:', err);
-      });
+      try {
+        refreshUsers().catch(err => {
+          console.error('Failed to refresh users:', err);
+        });
+      } catch (err) {
+        console.error('Error refreshing users:', err);
+      }
     }, 30000); // Every 30 seconds
     
     return () => clearInterval(interval);
   }, [refreshUsers]);
 
   const handleSelectUser = (user: any) => {
+    // Avoid doing anything if we're already selecting this user
+    if (selectedUser && user.id === selectedUser.id) return;
+    
     setSelectedUser(user);
     if (isMobile) {
       setMobileView('chat');
@@ -59,7 +69,11 @@ const ChatLayout = () => {
     const handleConnect = () => {
       console.log('Socket connected');
       // Refresh users list on reconnect
-      refreshUsers();
+      try {
+        refreshUsers();
+      } catch (err) {
+        console.error('Error refreshing users after connect:', err);
+      }
     };
     
     const handleDisconnect = (reason: string) => {
@@ -67,8 +81,12 @@ const ChatLayout = () => {
       setError('Disconnected from server. Reconnecting...');
       
       // If the disconnect is not because of a transport close, try to reconnect
-      if (reason === 'io server disconnect') {
-        socket.connect();
+      if (reason === 'io server disconnect' && socket.connect) {
+        try {
+          socket.connect();
+        } catch (err) {
+          console.error('Error reconnecting socket:', err);
+        }
       }
     };
     
@@ -78,24 +96,52 @@ const ChatLayout = () => {
     };
     
     // Set up listeners
-    socket.on('connect', handleConnect);
-    socket.on('disconnect', handleDisconnect);
-    socket.on('error', handleError);
+    try {
+      socket.on('connect', handleConnect);
+      socket.on('disconnect', handleDisconnect);
+      socket.on('error', handleError);
+    } catch (err) {
+      console.error('Error setting up socket listeners:', err);
+    }
     
     // Clean up
     return () => {
-      socket.off('connect', handleConnect);
-      socket.off('disconnect', handleDisconnect);
-      socket.off('error', handleError);
+      try {
+        if (socket) {
+          socket.off('connect', handleConnect);
+          socket.off('disconnect', handleDisconnect);
+          socket.off('error', handleError);
+        }
+      } catch (err) {
+        console.error('Error cleaning up socket listeners:', err);
+      }
     };
   }, [socket, refreshUsers]);
 
   // Handle call end
   const handleCallEnd = () => {
-    if (socket && socket.connected && selectedUser) {
-      socket.emit('endCall', { to: selectedUser.id });
+    try {
+      if (socket && socket.connected && selectedUser) {
+        socket.emit('endCall', { to: selectedUser.id });
+      }
+      endCall();
+    } catch (err) {
+      console.error('Error ending call:', err);
     }
-    endCall();
+  };
+
+  // Renderizza la dialog della chiamata in arrivo
+  const renderIncomingCallDialog = () => {
+    if (!incomingCall) return null;
+    
+    return (
+      <IncomingCallDialog
+        open={!!incomingCall}
+        username={incomingCall.username}
+        onAccept={acceptCall}
+        onReject={rejectCall}
+      />
+    );
   };
 
   return (
@@ -133,18 +179,11 @@ const ChatLayout = () => {
       </Snackbar>
       
       {/* Incoming call dialog */}
-      {incomingCall && (
-        <IncomingCallDialog
-          open={!!incomingCall}
-          username={incomingCall.username}
-          onAccept={acceptCall}
-          onReject={rejectCall}
-        />
-      )}
+      {renderIncomingCallDialog()}
       
-      {/* Video call component */}
+      {/* Video call component - Nota che ora usiamo VideoCallComponent invece di VideoCall */}
       {isCallActive && selectedUser && currentUser && socket && (
-        <VideoCall
+        <VideoCallComponent
           isOpen={isCallActive}
           onClose={handleCallEnd}
           user={selectedUser}

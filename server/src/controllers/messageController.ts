@@ -176,3 +176,39 @@ export const uploadAttachment = async (req: Request, res: Response) => {
     res.status(500).json({ message: 'Server error uploading file' });
   }
 };
+
+
+// Aggiungi questa nuova funzione in fondo al file, prima dell'ultima parentesi di chiusura
+export const deleteMessage = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: 'User not authenticated' });
+    }
+    
+    // Trova il messaggio per verificare che l'utente corrente sia il mittente
+    const message = await prisma.message.findUnique({
+      where: { id: parseInt(id) }
+    });
+    
+    if (!message) {
+      return res.status(404).json({ message: 'Message not found' });
+    }
+    
+    // Verifica che l'utente corrente sia il mittente del messaggio
+    if (message.senderId !== req.user.id) {
+      return res.status(403).json({ message: 'You can only delete your own messages' });
+    }
+    
+    // Elimina il messaggio
+    await prisma.message.delete({
+      where: { id: parseInt(id) }
+    });
+    
+    res.status(200).json({ message: 'Message deleted successfully' });
+  } catch (error) {
+    console.error('Delete message error:', error);
+    res.status(500).json({ message: 'Server error deleting message' });
+  }
+};
