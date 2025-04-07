@@ -12,7 +12,7 @@ interface ChatContextType {
   users: User[];
   onlineUsers: number[];
   messages: Message[];
-  setMessages: React.Dispatch<React.SetStateAction<Message[]>>; // Aggiungi questa riga
+  setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
   socket: Socket | null;
   incomingCall: { from: number; username: string; signal: any } | null;
   isCallActive: boolean;
@@ -20,7 +20,7 @@ interface ChatContextType {
   hasMoreMessages: boolean;
   unreadCounts: Record<number, number>;
   setSelectedUser: (user: User | null) => void;
-  sendMessage: (content: string) => Promise<void>;
+  sendMessage: (content: string, attachmentUrl?: string, attachmentType?: string) => Promise<void>;
   loadMoreMessages: () => Promise<void>;
   initiateCall: () => void;
   acceptCall: () => void;
@@ -36,7 +36,7 @@ export const ChatContext = createContext<ChatContextType>({
   users: [],
   onlineUsers: [],
   messages: [],
-  setMessages: () => {}, // Aggiungi questa riga
+  setMessages: () => {},
   socket: null,
   incomingCall: null,
   isCallActive: false,
@@ -132,7 +132,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         }
       }
     } catch (error) {
-      console.error('Error refreshing users:', error);
+      console.error('Errore aggiornamento utenti:', error);
     }
   }, [token, onlineUsers]);
 
@@ -140,12 +140,12 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   useEffect(() => {
     if (!token) return;
     
-    console.log('Initializing socket with token');
+    console.log('Inizializzazione socket con token');
     const newSocket = initializeSocket(token);
     setSocket(newSocket);
 
     return () => {
-      console.log('Disconnecting socket');
+      console.log('Disconnessione socket');
       disconnectSocket();
     };
   }, [token]);
@@ -194,7 +194,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     socket.on('onlineUsers', handleOnlineUsers);
     socket.on('unreadCounts', handleUnreadCounts);
     
-    // Request unread counts on connect
+    // Richiedi conteggio messaggi non letti alla connessione
     socket.emit('getUnreadCounts');
     
     return () => {
@@ -217,7 +217,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       setLoadingMessages(true);
       
       try {
-        console.log(`Fetching messages with user ${selectedUser.id}`);
+        console.log(`Caricamento messaggi con utente ${selectedUser.id}`);
         const response = await axios.get(`/api/messages/${selectedUser.id}?page=1&limit=50`, {
           headers: {
             Authorization: `Bearer ${token}`
@@ -244,7 +244,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
           }
         }
       } catch (error) {
-        console.error('Error fetching messages:', error);
+        console.error('Errore caricamento messaggi:', error);
       } finally {
         setLoadingMessages(false);
         isLoadingMessagesRef.current = false;
@@ -299,9 +299,9 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
           // Suona notifica
           try {
             const audio = new Audio('/notification.mp3');
-            audio.play().catch(e => console.log('Audio play error:', e));
+            audio.play().catch(e => console.log('Errore riproduzione audio:', e));
           } catch (e) {
-            console.log('Audio notification error:', e);
+            console.log('Errore notifica audio:', e);
           }
         } else {
           // Se è la conversazione corrente, segna come letto
@@ -373,26 +373,26 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     };
 
     const handleIncomingCall = (data: { from: number; username: string; signal: any }) => {
-      console.log('Incoming call from:', data.username);
+      console.log('Chiamata in arrivo da:', data.username);
       setIncomingCall(data);
       
       // Suona notifica per chiamata
       try {
         const audio = new Audio('/ringtone.mp3');
         audio.loop = true;
-        audio.play().catch(e => console.log('Audio play error:', e));
+        audio.play().catch(e => console.log('Errore riproduzione audio:', e));
         
         // Memorizza il riferimento audio per fermarlo quando la chiamata viene gestita
         window.incomingCallAudio = audio;
       } catch (e) {
-        console.log('Audio notification error:', e);
+        console.log('Errore notifica audio:', e);
       }
     };
 
     const handleCallRejected = (data: { userId: number, reason: string }) => {
-      console.log('Call rejected:', data.reason);
+      console.log('Chiamata rifiutata:', data.reason);
       setIsCallActive(false);
-      alert(`Call rejected: ${data.reason}`);
+      alert(`Chiamata rifiutata: ${data.reason}`);
       
       // Ferma audio di chiamata se attivo
       if (window.incomingCallAudio) {
@@ -402,7 +402,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     };
 
     const handleCallEnded = () => {
-      console.log('Call ended');
+      console.log('Chiamata terminata');
       setIsCallActive(false);
       
       // Ferma audio di chiamata se attivo
@@ -430,7 +430,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   }, [socket, currentUser, markMessagesAsRead]);
 
   // Funzione per inviare messaggi
-  const sendMessage = useCallback(async (content: string) => {
+  const sendMessage = useCallback(async (content: string, attachmentUrl?: string, attachmentType?: string) => {
     if (!selectedUserRef.current || !currentUser || !token || !socket) {
       return;
     }
@@ -451,7 +451,9 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         id: currentUser.id,
         username: currentUser.username,
         avatarUrl: currentUser.avatarUrl
-      }
+      },
+      attachmentUrl,
+      attachmentType
     };
     
     // Generare una chiave univoca per questo messaggio
@@ -472,63 +474,22 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         socket.emit('sendMessage', {
           content,
           senderId: currentUser.id,
-          receiverId: selectedUserRef.current.id
+          receiverId: selectedUserRef.current.id,
+          attachmentUrl,
+          attachmentType
         });
       } else {
-        throw new Error('Socket not connected');
+        throw new Error('Socket non connesso');
       }
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error('Errore invio messaggio:', error);
       
       // Rimuovi messaggio ottimistico in caso di errore
       setMessages(prev => prev.filter(msg => msg.id !== tempId));
       delete pendingMessagesRef.current[`temp-${Math.abs(tempId)}`];
       sentMessagesRef.current.delete(messageKey);
       
-      alert('Failed to send message. Please try again.');
-    }
-  }, [currentUser, socket, token]);
-
-  // Nuova funzione per eliminare messaggi
-  const deleteMessage = useCallback(async (messageId: number) => {
-    if (!currentUser || !token || !socket || !socket.connected) {
-      return;
-    }
-
-    try {
-      // Aggiorna ottimisticamente l'UI rimuovendo il messaggio
-      setMessages(prev => prev.filter(msg => msg.id !== messageId));
-      
-      // Invia richiesta di eliminazione al server
-      const response = await axios.delete(`/api/messages/${messageId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
-      
-      // Notifica altri utenti dell'eliminazione tramite socket
-      socket.emit('deleteMessage', { messageId });
-      
-      console.log('Message deleted successfully', response.data);
-    } catch (error) {
-      console.error('Error deleting message:', error);
-      
-      // In caso di errore, recupera i messaggi
-      if (selectedUserRef.current) {
-        try {
-          const response = await axios.get(`/api/messages/${selectedUserRef.current.id}?page=1&limit=50`, {
-            headers: {
-              Authorization: `Bearer ${token}`
-            }
-          });
-          
-          setMessages(response.data.messages || []);
-        } catch (err) {
-          console.error('Error reloading messages:', err);
-        }
-      }
-      
-      alert('Failed to delete message. Please try again.');
+      alert('Impossibile inviare il messaggio. Riprova.');
     }
   }, [currentUser, socket, token]);
 
@@ -565,7 +526,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         response.data.pagination.page < response.data.pagination.pages
       );
     } catch (error) {
-      console.error('Error loading more messages:', error);
+      console.error('Errore caricamento altri messaggi:', error);
     } finally {
       setLoadingMessages(false);
       isLoadingMessagesRef.current = false;
@@ -575,12 +536,12 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   // Funzioni per videochiamate
   const initiateCall = useCallback(() => {
     if (!socket || !socket.connected || !selectedUserRef.current) {
-      alert('Cannot initiate call: connection issue or no selected user');
+      alert('Impossibile iniziare la chiamata: problema di connessione o nessun utente selezionato');
       return;
     }
     
     if (selectedUserRef.current.status !== UserStatus.ONLINE) {
-      alert('Cannot call: User is offline');
+      alert('Impossibile chiamare: l\'utente è offline');
       return;
     }
     
@@ -645,35 +606,35 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
 
   return (
     <ChatContext.Provider
-    value={{
-      selectedUser,
-      users,
-      onlineUsers,
-      messages,
-      setMessages, // Aggiungi questa riga
-      socket,
-      incomingCall,
-      isCallActive,
-      loadingMessages,
-      hasMoreMessages,
-      unreadCounts,
-      setSelectedUser,
-      sendMessage,
-      loadMoreMessages,
-      initiateCall,
-      acceptCall,
-      rejectCall,
-      endCall,
-      refreshUsers,
-      markMessagesAsRead,
-    }}
-  >
-    {children}
-  </ChatContext.Provider>
+      value={{
+        selectedUser,
+        users,
+        onlineUsers,
+        messages,
+        setMessages,
+        socket,
+        incomingCall,
+        isCallActive,
+        loadingMessages,
+        hasMoreMessages,
+        unreadCounts,
+        setSelectedUser,
+        sendMessage,
+        loadMoreMessages,
+        initiateCall,
+        acceptCall,
+        rejectCall,
+        endCall,
+        refreshUsers,
+        markMessagesAsRead,
+      }}
+    >
+      {children}
+    </ChatContext.Provider>
   );
 };
 
-// Aggiungi questa dichiarazione per l'audio della chiamata
+// Aggiunta questa dichiarazione per l'audio della chiamata
 declare global {
   interface Window {
     incomingCallAudio: HTMLAudioElement | null;
@@ -684,7 +645,7 @@ declare global {
 export const useChat = () => {
   const context = useContext(ChatContext);
   if (!context) {
-    throw new Error('useChat must be used within a ChatProvider');
+    throw new Error('useChat deve essere usato all\'interno di un ChatProvider');
   }
   return context;
 };
