@@ -1,16 +1,15 @@
-// client/src/App.tsx
 import React, { useContext, lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Box, CircularProgress, Button } from '@mui/material'; // Aggiunto Button
 import { AuthContext } from './context/AuthContext';
 import { ChatProvider } from './context/ChatContext';
 
-// Lazy load components for better performance
+// Caricamento lazy dei componenti per migliore performance
 const Login = lazy(() => import('./components/auth/Login'));
 const Register = lazy(() => import('./components/auth/Register'));
 const ChatLayout = lazy(() => import('./components/chat/ChatLayout'));
 
-// Fallback loader component
+// Componente loader di fallback
 const Loader = () => (
   <Box 
     sx={{
@@ -41,7 +40,7 @@ class ErrorBoundary extends React.Component<React.PropsWithChildren<{}>, ErrorBo
   }
 
   componentDidCatch(error: any, errorInfo: any) {
-    console.error("App error:", error, errorInfo);
+    console.error("Errore app:", error, errorInfo);
   }
 
   render() {
@@ -80,7 +79,7 @@ class ErrorBoundary extends React.Component<React.PropsWithChildren<{}>, ErrorBo
   }
 }
 
-// AuthenticatedApp component con ChatProvider
+// Componente AuthenticatedApp con ChatProvider
 const AuthenticatedApp = () => {
   try {
     return (
@@ -93,7 +92,7 @@ const AuthenticatedApp = () => {
       </ChatProvider>
     );
   } catch (error) {
-    console.error("Error in AuthenticatedApp:", error);
+    console.error("Errore in AuthenticatedApp:", error);
     return <div>Errore nel caricamento dell'app. <button onClick={() => window.location.reload()}>Riprova</button></div>;
   }
 };
@@ -101,7 +100,7 @@ const AuthenticatedApp = () => {
 function App() {
   const { user, loading } = useContext(AuthContext);
   
-  // Show loading spinner while checking auth state
+  // Mostra spinner durante la verifica dello stato di autenticazione
   if (loading) {
     return <Loader />;
   }

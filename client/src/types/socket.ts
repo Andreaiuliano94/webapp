@@ -1,6 +1,3 @@
-// client/src/types/socket.ts
-
-
 export interface NewMessagePayload {
   receiverId: number;
   content: string;

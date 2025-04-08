@@ -1,4 +1,3 @@
-// client/src/components/chat/ForwardDialog.tsx
 import { useState, useEffect } from 'react';
 import {
   Dialog,

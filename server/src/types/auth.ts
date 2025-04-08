@@ -1,4 +1,3 @@
-// server/src/types/auth.ts
 export interface RegisterUserDto {
     username: string;
     email: string;

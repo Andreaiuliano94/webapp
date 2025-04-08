@@ -1,10 +1,9 @@
-// server/src/controllers/messageController.ts
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-// Get messages between current user and another user
+// Ottieni messaggi tra l'utente corrente e un altro utente
 export const getMessages = async (req: Request, res: Response) => {
   const { userId } = req.params;
   const page = parseInt(req.query.page as string) || 1;
@@ -12,13 +11,13 @@ export const getMessages = async (req: Request, res: Response) => {
 
   try {
     if (!req.user) {
-      return res.status(401).json({ message: 'User not authenticated' });
+      return res.status(401).json({ message: 'Utente non autenticato' });
     }
 
-    // Calculate skip for pagination
+    // Calcola skip per paginazione
     const skip = (page - 1) * limit;
 
-    // Get total count of messages
+    // Ottieni conteggio totale dei messaggi
     const totalCount = await prisma.message.count({
       where: {
         OR: [
@@ -34,7 +33,7 @@ export const getMessages = async (req: Request, res: Response) => {
       }
     });
 
-    // Get messages
+    // Ottieni messaggi
     const messages = await prisma.message.findMany({
       where: {
         OR: [
@@ -64,7 +63,7 @@ export const getMessages = async (req: Request, res: Response) => {
       take: limit
     });
 
-    // Mark unread messages as read
+    // Segna i messaggi non letti come letti
     await prisma.message.updateMany({
       where: {
         senderId: parseInt(userId),
@@ -78,7 +77,7 @@ export const getMessages = async (req: Request, res: Response) => {
     });
 
     res.status(200).json({
-      messages: messages.reverse(), // Return in ascending order
+      messages: messages.reverse(), // Restituisci in ordine ascendente
       pagination: {
         total: totalCount,
         page,
@@ -87,35 +86,35 @@ export const getMessages = async (req: Request, res: Response) => {
       }
     });
   } catch (error) {
-    console.error('Get messages error:', error);
-    res.status(500).json({ message: 'Server error getting messages' });
+    console.error('Errore nel recupero dei messaggi:', error);
+    res.status(500).json({ message: 'Errore del server nel recupero dei messaggi' });
   }
 };
 
-// Send a message
+// Invia un messaggio
 export const sendMessage = async (req: Request, res: Response) => {
   const { receiverId, content } = req.body;
 
   try {
     if (!req.user) {
-      return res.status(401).json({ message: 'User not authenticated' });
+      return res.status(401).json({ message: 'Utente non autenticato' });
     }
 
-    // Validate input
+    // Valida input
     if (!receiverId || !content) {
-      return res.status(400).json({ message: 'Receiver ID and content are required' });
+      return res.status(400).json({ message: 'ID destinatario e contenuto sono obbligatori' });
     }
 
-    // Check if receiver exists
+    // Controlla se il destinatario esiste
     const receiver = await prisma.user.findUnique({
       where: { id: parseInt(receiverId) }
     });
 
     if (!receiver) {
-      return res.status(404).json({ message: 'Receiver not found' });
+      return res.status(404).json({ message: 'Destinatario non trovato' });
     }
 
-    // Create message
+    // Crea messaggio
     const newMessage = await prisma.message.create({
       data: {
         content,
@@ -134,37 +133,37 @@ export const sendMessage = async (req: Request, res: Response) => {
     });
 
     res.status(201).json({
-      message: 'Message sent successfully',
+      message: 'Messaggio inviato con successo',
       data: newMessage
     });
   } catch (error) {
-    console.error('Send message error:', error);
-    res.status(500).json({ message: 'Server error sending message' });
+    console.error('Errore invio messaggio:', error);
+    res.status(500).json({ message: 'Errore del server nell\'invio del messaggio' });
   }
 };
 
-// Upload attachment
+// Carica allegato
 export const uploadAttachment = async (req: Request, res: Response) => {
   try {
     if (!req.user) {
-      return res.status(401).json({ message: 'User not authenticated' });
+      return res.status(401).json({ message: 'Utente non autenticato' });
     }
 
     if (!req.file) {
-      return res.status(400).json({ message: 'No file uploaded' });
+      return res.status(400).json({ message: 'Nessun file caricato' });
     }
 
     const { receiverId } = req.body;
 
     if (!receiverId) {
-      return res.status(400).json({ message: 'Receiver ID is required' });
+      return res.status(400).json({ message: 'ID destinatario obbligatorio' });
     }
 
     const attachmentUrl = `/uploads/${req.file.filename}`;
     const attachmentType = req.file.mimetype;
 
     res.status(200).json({
-      message: 'File uploaded successfully',
+      message: 'File caricato con successo',
       data: {
         filename: req.file.originalname,
         attachmentUrl,
@@ -172,8 +171,8 @@ export const uploadAttachment = async (req: Request, res: Response) => {
       }
     });
   } catch (error) {
-    console.error('Upload attachment error:', error);
-    res.status(500).json({ message: 'Server error uploading file' });
+    console.error('Errore caricamento allegato:', error);
+    res.status(500).json({ message: 'Errore del server nel caricamento del file' });
   }
 };
 
@@ -184,7 +183,7 @@ export const deleteMessage = async (req: Request, res: Response) => {
   
   try {
     if (!req.user) {
-      return res.status(401).json({ message: 'User not authenticated' });
+      return res.status(401).json({ message: 'Utente non autenticato' });
     }
     
     // Trova il messaggio per verificare che l'utente corrente sia il mittente
@@ -193,12 +192,12 @@ export const deleteMessage = async (req: Request, res: Response) => {
     });
     
     if (!message) {
-      return res.status(404).json({ message: 'Message not found' });
+      return res.status(404).json({ message: 'Messaggio non trovato' });
     }
     
     // Verifica che l'utente corrente sia il mittente del messaggio
     if (message.senderId !== req.user.id) {
-      return res.status(403).json({ message: 'You can only delete your own messages' });
+      return res.status(403).json({ message: 'Puoi eliminare solo i tuoi messaggi' });
     }
     
     // Elimina il messaggio
@@ -206,10 +205,10 @@ export const deleteMessage = async (req: Request, res: Response) => {
       where: { id: parseInt(id) }
     });
     
-    res.status(200).json({ message: 'Message deleted successfully' });
+    res.status(200).json({ message: 'Messaggio eliminato con successo' });
   } catch (error) {
-    console.error('Delete message error:', error);
-    res.status(500).json({ message: 'Server error deleting message' });
+    console.error('Errore eliminazione messaggio:', error);
+    res.status(500).json({ message: 'Errore del server nell\'eliminazione del messaggio' });
   }
 };
 export const deleteConversation = async (req: Request, res: Response) => {
@@ -217,7 +216,7 @@ export const deleteConversation = async (req: Request, res: Response) => {
   
   try {
     if (!req.user) {
-      return res.status(401).json({ message: 'User not authenticated' });
+      return res.status(401).json({ message: 'Utente non autenticato' });
     }
 
     // Elimina tutti i messaggi tra l'utente corrente e l'utente specificato
@@ -236,9 +235,9 @@ export const deleteConversation = async (req: Request, res: Response) => {
       }
     });
 
-    res.status(200).json({ message: 'Conversation deleted successfully' });
+    res.status(200).json({ message: 'Conversazione eliminata con successo' });
   } catch (error) {
-    console.error('Delete conversation error:', error);
-    res.status(500).json({ message: 'Server error deleting conversation' });
+    console.error('Errore eliminazione conversazione:', error);
+    res.status(500).json({ message: 'Errore del server nell\'eliminazione della conversazione' });
   }
 };

@@ -1,4 +1,3 @@
-// client/src/main.tsx
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
@@ -11,7 +10,7 @@ import './polyfill';
 
 // Assicurati che il container esista
 const rootElement = document.getElementById('root');
-if (!rootElement) throw new Error('Failed to find the root element');
+if (!rootElement) throw new Error('Impossibile trovare l\'elemento root');
 
 // Usa createRoot con gestione errori
 const root = ReactDOM.createRoot(rootElement);

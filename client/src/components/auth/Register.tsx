@@ -1,4 +1,3 @@
-// client/src/components/auth/Register.tsx
 import { useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import {
@@ -31,17 +30,17 @@ const Register = () => {
 
   const validateForm = () => {
     if (password !== confirmPassword) {
-      setFormError('Passwords do not match');
+      setFormError('Le password non corrispondono');
       return false;
     }
 
     if (password.length < 6) {
-      setFormError('Password must be at least 6 characters long');
+      setFormError('La password deve essere lunga almeno 6 caratteri');
       return false;
     }
 
     if (username.length < 3) {
-      setFormError('Username must be at least 3 characters long');
+      setFormError('Il nome utente deve essere lungo almeno 3 caratteri');
       return false;
     }
 
@@ -58,8 +57,8 @@ const Register = () => {
     try {
       await register(username, email, password, displayName || undefined);
     } catch (err) {
-      // Error is already handled in the auth context
-      console.error('Registration failed:', err);
+      // L'errore è già gestito nel context di autenticazione
+      console.error('Registrazione fallita:', err);
     } finally {
       setIsSubmitting(false);
     }
@@ -87,10 +86,10 @@ const Register = () => {
         >
           <Box sx={{ mb: 4, textAlign: 'center' }}>
             <Typography variant="h4" component="h1" gutterBottom>
-              Create an Account
+              Crea un Account
             </Typography>
             <Typography variant="body1" color="text.secondary">
-              Join our chat community
+              Unisciti alla nostra community di chat
             </Typography>
           </Box>
 
@@ -109,7 +108,7 @@ const Register = () => {
 
           <Box component="form" onSubmit={handleSubmit}>
             <TextField
-              label="Username"
+              label="Nome utente"
               variant="outlined"
               fullWidth
               margin="normal"
@@ -133,14 +132,14 @@ const Register = () => {
             />
 
             <TextField
-              label="Display Name (optional)"
+              label="Nome visualizzato (opzionale)"
               variant="outlined"
               fullWidth
               margin="normal"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               autoComplete="name"
-              helperText="This is how your name will appear to others"
+              helperText="Questo è come il tuo nome apparirà agli altri"
             />
 
             <TextField
@@ -168,7 +167,7 @@ const Register = () => {
             />
 
             <TextField
-              label="Confirm Password"
+              label="Conferma Password"
               variant="outlined"
               fullWidth
               margin="normal"
@@ -191,14 +190,14 @@ const Register = () => {
                 py: 1.5,
               }}
             >
-              {isSubmitting ? <CircularProgress size={24} /> : 'Sign Up'}
+              {isSubmitting ? <CircularProgress size={24} /> : 'Registrati'}
             </Button>
 
             <Box sx={{ mt: 2, textAlign: 'center' }}>
               <Typography variant="body2">
-                Already have an account?{' '}
+                Hai già un account?{' '}
                 <Link component={RouterLink} to="/login" underline="hover">
-                  Sign in
+                  Accedi
                 </Link>
               </Typography>
             </Box>

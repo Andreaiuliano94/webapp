@@ -1,4 +1,3 @@
-// server/src/routes/messageRoutes.ts
 import express from 'express';
 import { upload } from '../middlewares/upload';
 import * as messageController from '../controllers/messageController';

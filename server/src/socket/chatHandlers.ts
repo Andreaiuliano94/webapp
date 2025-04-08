@@ -1,4 +1,3 @@
-// server/src/socket/chatHandlers.ts
 import { Server, Socket } from 'socket.io';
 import { PrismaClient } from '@prisma/client';
 
@@ -22,19 +21,19 @@ export const setupChatHandlers = (
   socket: AuthenticatedSocket,
   onlineUsers: Map<number, string>
 ) => {
-  // Handle sending a new message
+  // Gestisce l'invio di un nuovo messaggio
   socket.on('sendMessage', async (messageData: Message) => {
     try {
       if (!socket.userId) {
-        return socket.emit('error', { message: 'User not authenticated' });
+        return socket.emit('error', { message: 'Utente non autenticato' });
       }
 
-      // Ensure sender ID matches authenticated user
+      // Assicura che l'ID del mittente corrisponda all'utente autenticato
       if (messageData.senderId !== socket.userId) {
-        return socket.emit('error', { message: 'Unauthorized sender ID' });
+        return socket.emit('error', { message: 'ID mittente non autorizzato' });
       }
 
-      // Create new message in database
+      // Crea un nuovo messaggio nel database
       const newMessage = await prisma.message.create({
         data: {
           content: messageData.content,
@@ -50,63 +49,63 @@ export const setupChatHandlers = (
         }
       });
 
-      // Find receiver's socket if they're online
-      const receiverSocketId = onlineUsers.get(messageData.receiverId);
+     // Trova il socket ID del destinatario se è online
+     const receiverSocketId = onlineUsers.get(messageData.receiverId);
 
-      // Emit message to sender and receiver
-      socket.emit('newMessage', newMessage);
-      
-      if (receiverSocketId) {
-        io.to(receiverSocketId).emit('newMessage', newMessage);
-      }
-    } catch (error) {
-      console.error('Error sending message:', error);
-      socket.emit('error', { message: 'Failed to send message' });
-    }
-  });
+     // Invia il messaggio al mittente e al destinatario
+     socket.emit('newMessage', newMessage);
+     
+     if (receiverSocketId) {
+       io.to(receiverSocketId).emit('newMessage', newMessage);
+     }
+   } catch (error) {
+     console.error('Errore invio messaggio:', error);
+     socket.emit('error', { message: 'Impossibile inviare il messaggio' });
+   }
+ });
 
-  // Handle typing indicator
-  socket.on('typing', (data: { receiverId: number, isTyping: boolean }) => {
-    if (!socket.userId) return;
+ // Gestione indicatore di digitazione
+ socket.on('typing', (data: { receiverId: number, isTyping: boolean }) => {
+   if (!socket.userId) return;
 
-    const receiverSocketId = onlineUsers.get(data.receiverId);
-    if (receiverSocketId) {
-      io.to(receiverSocketId).emit('userTyping', {
-        userId: socket.userId,
-        isTyping: data.isTyping
-      });
-    }
-  });
+   const receiverSocketId = onlineUsers.get(data.receiverId);
+   if (receiverSocketId) {
+     io.to(receiverSocketId).emit('userTyping', {
+       userId: socket.userId,
+       isTyping: data.isTyping
+     });
+   }
+ });
 
-  // Handle reading messages
-  socket.on('markAsRead', async (data: { senderId: number, timestamp?: string }) => {
-    try {
-      if (!socket.userId) return;
+ // Gestione lettura messaggi
+ socket.on('markAsRead', async (data: { senderId: number, timestamp?: string }) => {
+   try {
+     if (!socket.userId) return;
 
-      // Update all unread messages from the sender to this user
-      await prisma.message.updateMany({
-        where: {
-          senderId: data.senderId,
-          receiverId: socket.userId,
-          isRead: false,
-          ...(data.timestamp && { createdAt: { lte: new Date(data.timestamp) } })
-        },
-        data: {
-          isRead: true,
-          readAt: new Date()
-        }
-      });
+     // Aggiorna tutti i messaggi non letti dal mittente a questo utente
+     await prisma.message.updateMany({
+       where: {
+         senderId: data.senderId,
+         receiverId: socket.userId,
+         isRead: false,
+         ...(data.timestamp && { createdAt: { lte: new Date(data.timestamp) } })
+       },
+       data: {
+         isRead: true,
+         readAt: new Date()
+       }
+     });
 
-      // Notify the sender that their messages have been read
-      const senderSocketId = onlineUsers.get(data.senderId);
-      if (senderSocketId) {
-        io.to(senderSocketId).emit('messagesRead', {
-          readBy: socket.userId,
-          timestamp: data.timestamp || new Date().toISOString()
-        });
-      }
-    } catch (error) {
-      console.error('Error marking messages as read:', error);
-    }
-  });
+     // Notifica al mittente che i suoi messaggi sono stati letti
+     const senderSocketId = onlineUsers.get(data.senderId);
+     if (senderSocketId) {
+       io.to(senderSocketId).emit('messagesRead', {
+         readBy: socket.userId,
+         timestamp: data.timestamp || new Date().toISOString()
+       });
+     }
+   } catch (error) {
+     console.error('Errore nella marcatura dei messaggi come letti:', error);
+   }
+ });
 };

@@ -1,4 +1,3 @@
-// client/src/components/chat/MessageArea.tsx
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Box, Typography, TextField, IconButton, Avatar, Paper, CircularProgress,
@@ -17,8 +16,6 @@ import { useChat } from '../../context/ChatContext';
 import MessageItem from './MessageItem';
 import { format } from 'date-fns';
 import axios from 'axios';
-// Nota: Assicurati di installare questa libreria
-// npm install emoji-picker-react
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 
 interface MessageAreaProps {

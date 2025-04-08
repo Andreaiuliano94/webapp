@@ -1,4 +1,3 @@
-// client/src/context/AuthContext.tsx
 import React, { createContext, useState, useEffect, ReactNode } from 'react';
 import axios from 'axios';
 import { User } from '../types/user';
@@ -45,7 +44,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     withCredentials: true,
   });
 
-  // Interceptor to add token to requests
+  // Interceptor per aggiungere il token alle richieste
   api.interceptors.request.use(
     (config) => {
       if (token) {
@@ -58,7 +57,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   );
 
-  // Load user if token exists
+  // Carica l'utente se il token esiste
   useEffect(() => {
     const loadUser = async () => {
       if (token) {
@@ -67,7 +66,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           const response = await api.get('/auth/me');
           setUser(response.data.user);
         } catch (err) {
-          console.error('Failed to load user:', err);
+          console.error('Impossibile caricare l\'utente:', err);
           localStorage.removeItem('token');
           setToken(null);
           setUser(null);
@@ -96,7 +95,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (err: any) {
       setError(
         err.response?.data?.message || 
-        'Login failed. Please check your credentials and try again.'
+        'Login fallito. Controlla le tue credenziali e riprova.'
       );
       throw err;
     } finally {
@@ -124,7 +123,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (err: any) {
       setError(
         err.response?.data?.message || 
-        'Registration failed. Please try again with different information.'
+        'Registrazione fallita. Riprova con informazioni diverse.'
       );
       throw err;
     } finally {
@@ -137,7 +136,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setLoading(true);
       await api.post('/auth/logout');
     } catch (err) {
-      console.error('Logout error:', err);
+      console.error('Errore durante il logout:', err);
     } finally {
       localStorage.removeItem('token');
       setToken(null);

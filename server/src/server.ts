@@ -1,5 +1,3 @@
-// server/src/server.ts
-
 import express from 'express';
 import http from 'http';
 import cors from 'cors';
@@ -17,34 +15,33 @@ import { authenticateJWT } from './middlewares/auth';
 import { logger } from './utils/logger';
 import { PrismaClient } from '@prisma/client';
 
-// Load environment variables
+// Carica variabili d'ambiente
 dotenv.config();
 
-// Create Prisma client
+// Crea client Prisma
 const prisma = new PrismaClient();
 
-// Initialize Express app
+// Inizializza app Express
 const app = express();
 const server = http.createServer(app);
 
 // Verifica connessione al database prima di avviare il server
 async function startServer() {
   try {
-    // Test database connection
-    logger.info('Testing database connection...');
+    // Test connessione database
+    logger.info('Verifica connessione al database...');
     await prisma.$connect();
-    logger.info('Database connection successful! ✅');
+    logger.info('Connessione al database riuscita! ✅');
 
-    // Initialize Socket.io
+    // Inizializza Socket.io
     const io = configureSocket(server);
-
     // Middleware
     app.use(cors(corsOptions));
     app.use(express.json());
     app.use(express.urlencoded({ extended: true }));
     app.use(cookieParser());
 
-    // Make sure uploads directory exists
+    // Assicurati che la directory uploads esista
     const uploadDir = path.join(__dirname, '../uploads');
     app.use('/uploads', express.static(uploadDir));
 
@@ -53,7 +50,7 @@ async function startServer() {
     app.use('/api/users', authenticateJWT, userRoutes);
     app.use('/api/messages', authenticateJWT, messageRoutes);
 
-    // Health check
+    // Controllo salute
     app.get('/health', (_req, res) => {
       res.status(200).json({ 
         status: 'ok', 
@@ -63,18 +60,18 @@ async function startServer() {
       });
     });
 
-    // 404 handler
+    // Gestore 404
     app.use((_req, res) => {
-      res.status(404).json({ message: 'Route not found' });
+      res.status(404).json({ message: 'Percorso non trovato' });
     });
 
-    // Error handler
+    // Gestore errori
     app.use(errorHandler);
 
-    // Set up socket handlers
+    // Configura gestori socket
     setupSocketHandlers(io);
 
-    // Start server
+    // Avvia server
     const PORT = process.env.PORT || 5000;
     server.listen(PORT, () => {
       const env = process.env.NODE_ENV || 'development';
@@ -86,10 +83,10 @@ async function startServer() {
       console.log('│' + ' '.repeat(boxWidth) + '│');
       
       const messages = [
-        `🚀 Server running on port ${PORT}`,
-        `🌍 Environment: ${env}`,
-        `🗄️  Database connected successfully`,
-        `🔌 Socket.IO initialized`,
+        `🚀 Server in esecuzione sulla porta ${PORT}`,
+        `🌍 Ambiente: ${env}`,
+        `🗄️  Database connesso con successo`,
+        `🔌 Socket.IO inizializzato`,
         `📅 ${new Date().toLocaleString()}`
       ];
       
@@ -101,22 +98,22 @@ async function startServer() {
       console.log('│' + ' '.repeat(boxWidth) + '│');
       console.log('└' + divider + '┘\n');
       
-      logger.info(`Server is running on port ${PORT}`);
-      logger.info(`Environment: ${env}`);
+      logger.info(`Il server è in esecuzione sulla porta ${PORT}`);
+      logger.info(`Ambiente: ${env}`);
     });
   } catch (error) {
-    logger.error('Failed to connect to the database:', error);
-    console.error('\n❌ Database connection failed!');
-    console.error('Please make sure your database is running and credentials are correct.');
-    console.error('Error details:', error);
+    logger.error('Impossibile connettersi al database:', error);
+    console.error('\n❌ Connessione al database fallita!');
+    console.error('Assicurati che il database sia in esecuzione e le credenziali siano corrette.');
+    console.error('Dettagli errore:', error);
     process.exit(1);
   } finally {
-    // Disconnect Prisma client when done with connection test
+    // Disconnetti client Prisma dopo aver terminato il test di connessione
     await prisma.$disconnect();
   }
 }
 
-// Start the server with database connection check
+// Avvia il server con controllo di connessione al database
 startServer();
 
 export { app, server };

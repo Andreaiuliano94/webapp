@@ -1,4 +1,3 @@
-// client/src/components/chat/UserList.tsx
 import { useState } from 'react';
 import { 
   Box, 

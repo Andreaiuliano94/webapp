@@ -1,4 +1,3 @@
-// server/src/services/authService.ts
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
@@ -8,7 +7,7 @@ const prisma = new PrismaClient();
 
 export const authService = {
   register: async (userData: RegisterUserDto): Promise<AuthResponse> => {
-    // Check if user already exists
+    // Controlla se l'utente esiste già
     const existingUser = await prisma.user.findFirst({
       where: {
         OR: [
@@ -19,14 +18,14 @@ export const authService = {
     });
 
     if (existingUser) {
-      throw new Error('Username or email already exists');
+      throw new Error('Username o email già esistenti');
     }
 
-    // Hash password
+    // Hash della password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(userData.password, salt);
 
-    // Create user
+    // Crea utente
     const user = await prisma.user.create({
       data: {
         username: userData.username,
@@ -36,7 +35,7 @@ export const authService = {
       },
     });
 
-    // Generate JWT token
+    // Genera token JWT
     const token = jwt.sign(
       { id: user.id, email: user.email },
       process.env.JWT_SECRET || 'fallback_secret',
@@ -53,33 +52,33 @@ export const authService = {
         status: user.status,
       },
       token,
-      message: 'User registered successfully'
+      message: 'Utente registrato con successo'
     };
   },
 
   login: async (credentials: LoginDto): Promise<AuthResponse> => {
-    // Find user
+    // Trova utente
     const user = await prisma.user.findUnique({
       where: { email: credentials.email }
     });
 
     if (!user) {
-      throw new Error('Invalid credentials');
+      throw new Error('Credenziali non valide');
     }
 
-    // Check password
+    // Controlla password
     const isMatch = await bcrypt.compare(credentials.password, user.password);
     if (!isMatch) {
-      throw new Error('Invalid credentials');
+      throw new Error('Credenziali non valide');
     }
 
-    // Update user status
+    // Aggiorna stato utente
     await prisma.user.update({
       where: { id: user.id },
       data: { status: 'ONLINE', lastSeen: new Date() }
     });
 
-    // Generate JWT token
+    // Genera token JWT
     const token = jwt.sign(
       { id: user.id, email: user.email },
       process.env.JWT_SECRET || 'fallback_secret',
@@ -96,7 +95,7 @@ export const authService = {
         status: user.status,
       },
       token,
-      message: 'Login successful'
+      message: 'Login effettuato con successo'
     };
   },
 
@@ -124,7 +123,7 @@ export const authService = {
     });
 
     if (!user) {
-      throw new Error('User not found');
+      throw new Error('Utente non trovato');
     }
 
     return { user };

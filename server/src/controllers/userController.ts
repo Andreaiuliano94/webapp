@@ -1,19 +1,18 @@
-// server/src/controllers/userController.ts
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-// Get all users
+// Ottieni tutti gli utenti
 export const getAllUsers = async (req: Request, res: Response) => {
   try {
     if (!req.user) {
-      return res.status(401).json({ message: 'User not authenticated' });
+      return res.status(401).json({ message: 'Utente non autenticato' });
     }
 
     const users = await prisma.user.findMany({
       where: {
-        id: { not: req.user.id } // Exclude current user
+        id: { not: req.user.id } // Escludi utente corrente
       },
       select: {
         id: true,
@@ -30,18 +29,18 @@ export const getAllUsers = async (req: Request, res: Response) => {
 
     res.status(200).json({ users });
   } catch (error) {
-    console.error('Get all users error:', error);
-    res.status(500).json({ message: 'Server error getting users' });
+    console.error('Errore nel recupero di tutti gli utenti:', error);
+    res.status(500).json({ message: 'Errore del server nel recupero degli utenti' });
   }
 };
 
-// Get user by ID
+// Ottieni utente per ID
 export const getUserById = async (req: Request, res: Response) => {
   const { id } = req.params;
 
   try {
     if (!req.user) {
-      return res.status(401).json({ message: 'User not authenticated' });
+      return res.status(401).json({ message: 'Utente non autenticato' });
     }
 
     const user = await prisma.user.findUnique({
@@ -59,26 +58,26 @@ export const getUserById = async (req: Request, res: Response) => {
     });
 
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({ message: 'Utente non trovato' });
     }
 
     res.status(200).json({ user });
   } catch (error) {
-    console.error('Get user by ID error:', error);
-    res.status(500).json({ message: 'Server error getting user' });
+    console.error('Errore nel recupero dell\'utente per ID:', error);
+    res.status(500).json({ message: 'Errore del server nel recupero dell\'utente' });
   }
 };
 
-// Update user profile
+// Aggiorna profilo utente
 export const updateProfile = async (req: Request, res: Response) => {
   const { displayName, bio } = req.body;
 
   try {
     if (!req.user) {
-      return res.status(401).json({ message: 'User not authenticated' });
+      return res.status(401).json({ message: 'Utente non autenticato' });
     }
 
-    // Update user
+    // Aggiorna utente
     const updatedUser = await prisma.user.update({
       where: { id: req.user.id },
       data: {
@@ -98,29 +97,29 @@ export const updateProfile = async (req: Request, res: Response) => {
     });
 
     res.status(200).json({
-      message: 'Profile updated successfully',
+      message: 'Profilo aggiornato con successo',
       user: updatedUser
     });
   } catch (error) {
-    console.error('Update profile error:', error);
-    res.status(500).json({ message: 'Server error updating profile' });
+    console.error('Errore aggiornamento profilo:', error);
+    res.status(500).json({ message: 'Errore del server nell\'aggiornamento del profilo' });
   }
 };
 
-// Update avatar
+// Aggiorna avatar
 export const updateAvatar = async (req: Request, res: Response) => {
   try {
     if (!req.user) {
-      return res.status(401).json({ message: 'User not authenticated' });
+      return res.status(401).json({ message: 'Utente non autenticato' });
     }
 
     if (!req.file) {
-      return res.status(400).json({ message: 'No image file provided' });
+      return res.status(400).json({ message: 'Nessun file immagine fornito' });
     }
 
     const avatarUrl = `/uploads/${req.file.filename}`;
 
-    // Update user
+    // Aggiorna utente
     const updatedUser = await prisma.user.update({
       where: { id: req.user.id },
       data: { avatarUrl },
@@ -132,11 +131,11 @@ export const updateAvatar = async (req: Request, res: Response) => {
     });
 
     res.status(200).json({
-      message: 'Avatar updated successfully',
+      message: 'Avatar aggiornato con successo',
       user: updatedUser
     });
   } catch (error) {
-    console.error('Update avatar error:', error);
-    res.status(500).json({ message: 'Server error updating avatar' });
+    console.error('Errore aggiornamento avatar:', error);
+    res.status(500).json({ message: 'Errore del server nell\'aggiornamento dell\'avatar' });
   }
 };

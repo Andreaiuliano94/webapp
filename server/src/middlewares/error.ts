@@ -1,4 +1,3 @@
-// server/src/middlewares/error.ts
 import { Request, Response, NextFunction } from 'express';
 
 export interface AppError extends Error {
@@ -12,9 +11,9 @@ export const errorHandler = (
   _next: NextFunction
 ) => {
   const statusCode = err.statusCode || 500;
-  const message = err.message || 'Something went wrong';
+  const message = err.message || 'Qualcosa è andato storto';
 
-  // Log error
+  // Registra errore
   console.error(`[${new Date().toISOString()}] ${statusCode} - ${message}`);
   if (process.env.NODE_ENV === 'development') {
     console.error(err.stack);

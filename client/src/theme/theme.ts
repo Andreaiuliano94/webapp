@@ -1,4 +1,3 @@
-// client/src/theme/theme.ts
 import { createTheme, alpha } from '@mui/material/styles';
 
 // Definisci i colori personalizzati

@@ -1,4 +1,3 @@
-// client/src/components/profile/ProfileSettings.tsx
 import { useState, useRef, useEffect } from 'react';
 import {
   Dialog,

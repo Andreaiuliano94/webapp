@@ -1,4 +1,3 @@
-// client/src/services/socket.ts
 import { io, Socket } from 'socket.io-client';
 import { Message } from '../types/message';
 
@@ -6,56 +5,56 @@ let socket: Socket;
 
 export const initializeSocket = (token: string): Socket => {
   if (socket) {
-    console.log('Disconnecting existing socket before creating a new one');
+    console.log('Disconnessione del socket esistente prima di crearne uno nuovo');
     socket.disconnect();
   }
 
-  console.log('Initializing socket connection with token');
+  console.log('Inizializzazione connessione socket con token');
   
-  // For development using proxy
+  // Per lo sviluppo utilizzando il proxy
   socket = io({
     auth: { token },
     withCredentials: true,
     reconnection: true,
     reconnectionAttempts: 5,
     reconnectionDelay: 1000,
-    forceNew: true, // Force a new connection
+    forceNew: true, // Forza una nuova connessione
     autoConnect: true
   });
 
   socket.on('connect', () => {
-    console.log(`Socket connected successfully with ID: ${socket.id}`);
+    console.log(`Socket connesso con successo con ID: ${socket.id}`);
     
-    // Set up a regular ping to keep the user's online status updated
+    // Imposta un ping regolare per mantenere aggiornato lo stato online dell'utente
     const pingInterval = setInterval(() => {
       if (socket.connected) {
         socket.emit('userActivity');
       } else {
         clearInterval(pingInterval);
       }
-    }, 30000); // Every 30 seconds
+    }, 30000); // Ogni 30 secondi
     
-    // Clear interval when socket disconnects
+    // Cancella intervallo quando il socket si disconnette
     socket.on('disconnect', () => {
       clearInterval(pingInterval);
     });
   });
 
   socket.on('disconnect', (reason) => {
-    console.log(`Socket disconnected. Reason: ${reason}`);
+    console.log(`Socket disconnesso. Motivo: ${reason}`);
   });
 
   socket.on('connect_error', (error) => {
-    console.error('Socket connection error:', error);
+    console.error('Errore connessione socket:', error);
   });
 
   socket.on('error', (error) => {
-    console.error('Socket error from server:', error);
+    console.error('Errore socket dal server:', error);
   });
 
-  // Debug for online users events
+  // Debug per eventi utenti online
   socket.on('onlineUsers', (userIds) => {
-    console.log('Online users updated:', userIds);
+    console.log('Utenti online aggiornati:', userIds);
   });
 
   return socket;
@@ -63,12 +62,12 @@ export const initializeSocket = (token: string): Socket => {
 
 export const getSocket = (): Socket | null => {
   if (!socket) {
-    console.warn('Socket not initialized. Call initializeSocket first.');
+    console.warn('Socket non inizializzato. Chiama initializeSocket prima.');
     return null;
   }
   
   if (!socket.connected) {
-    console.warn('Socket exists but is not connected. Current state:', socket.connected ? 'connected' : 'disconnected');
+    console.warn('Il socket esiste ma non è connesso. Stato attuale:', socket.connected ? 'connesso' : 'disconnesso');
   }
   
   return socket;
@@ -76,10 +75,10 @@ export const getSocket = (): Socket | null => {
 
 export const disconnectSocket = (): void => {
   if (socket) {
-    console.log('Manually disconnecting socket');
+    console.log('Disconnessione manuale del socket');
     socket.disconnect();
   } else {
-    console.log('No socket to disconnect');
+    console.log('Nessun socket da disconnettere');
   }
 };
 
@@ -88,11 +87,11 @@ export const sendMessage = (
   callback?: (message: Message) => void
 ): void => {
   if (!socket || !socket.connected) {
-    console.warn(`Socket not initialized or not connected. Connected status: ${socket?.connected}`);
+    console.warn(`Socket non inizializzato o non connesso. Stato connessione: ${socket?.connected}`);
     return;
   }
   
-  console.log(`Sending message to user ${message.receiverId}: ${message.content.substring(0, 20)}...`);
+  console.log(`Invio messaggio all'utente ${message.receiverId}: ${message.content.substring(0, 20)}...`);
   socket.emit('sendMessage', message, callback);
 };
 
@@ -108,35 +107,35 @@ export const stopTyping = (receiverId: number): void => {
 
 export const markMessagesAsRead = (senderId: number): void => {
   if (!socket || !socket.connected) return;
-  console.log(`Marking messages from user ${senderId} as read`);
+  console.log(`Marcatura messaggi dall'utente ${senderId} come letti`);
   socket.emit('markAsRead', { senderId });
 };
 
 export const callUser = (to: number, signal?: any): void => {
   if (!socket || !socket.connected) {
-    console.warn('Cannot initiate call: Socket not connected');
+    console.warn('Impossibile iniziare chiamata: Socket non connesso');
     return;
   }
   
-  console.log(`Initiating call to user ${to}`);
+  console.log(`Avvio chiamata all'utente ${to}`);
   socket.emit('callUser', { to, signal });
 };
 
 export const acceptCall = (to: number, signal?: any): void => {
   if (!socket || !socket.connected) return;
-  console.log(`Accepting call from user ${to}`);
+  console.log(`Accettazione chiamata dall'utente ${to}`);
   socket.emit('acceptCall', { to, signal });
 };
 
 export const rejectCall = (to: number): void => {
   if (!socket || !socket.connected) return;
-  console.log(`Rejecting call from user ${to}`);
+  console.log(`Rifiuto chiamata dall'utente ${to}`);
   socket.emit('rejectCall', { to });
 };
 
 export const endCall = (to: number): void => {
   if (!socket || !socket.connected) return;
-  console.log(`Ending call with user ${to}`);
+  console.log(`Terminazione chiamata con l'utente ${to}`);
   socket.emit('endCall', { to });
 };
 
@@ -145,14 +144,14 @@ export const sendIceCandidate = (to: number, candidate: any): void => {
   socket.emit('ice-candidate', { to, candidate });
 };
 
-// Create a ping function to manually test connection
+// Crea una funzione ping per testare manualmente la connessione
 export const pingServer = (): void => {
   if (!socket || !socket.connected) {
-    console.warn('Cannot ping: Socket not connected');
+    console.warn('Impossibile fare ping: Socket non connesso');
     return;
   }
   
-  console.log('Pinging server...');
+  console.log('Ping al server...');
   socket.emit('userActivity');
-  console.log('Ping sent');
+  console.log('Ping inviato');
 };

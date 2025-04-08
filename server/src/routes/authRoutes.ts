@@ -1,4 +1,3 @@
-// server/src/routes/authRoutes.ts
 import express from 'express';
 import * as authController from '../controllers/authController';
 import { authenticateJWT } from '../middlewares/auth';

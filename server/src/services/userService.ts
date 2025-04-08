@@ -1,4 +1,3 @@
-// server/src/services/userService.ts
 import { PrismaClient } from '@prisma/client';
 import { UpdateProfileDto } from '../types/user';
 
@@ -8,7 +7,7 @@ export const userService = {
   getAllUsers: async (currentUserId: number) => {
     const users = await prisma.user.findMany({
       where: {
-        id: { not: currentUserId } // Exclude current user
+        id: { not: currentUserId } // Escludi utente corrente
       },
       select: {
         id: true,
@@ -42,7 +41,7 @@ export const userService = {
     });
 
     if (!user) {
-      throw new Error('User not found');
+      throw new Error('Utente non trovato');
     }
 
     return { user };

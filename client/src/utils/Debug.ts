@@ -1,10 +1,7 @@
-// client/src/utils/debug.ts
-// Utility functions for debugging the application in the browser console
-
 import { getSocket, pingServer } from '../services/socket';
 //import { UserStatus } from '../types/user';
 
-// Make functions available in the browser console
+// Rendi le funzioni disponibili nella console del browser
 declare global {
   interface Window {
     debugChat: {
@@ -18,33 +15,33 @@ declare global {
   }
 }
 
-// Check socket connection
+// Controlla connessione socket
 const checkSocket = () => {
   const socket = getSocket();
   if (!socket) {
-    console.error('Socket not initialized');
+    console.error('Socket non inizializzato');
     return;
   }
 
-  console.log('Socket connection status:', {
+  console.log('Stato connessione socket:', {
     id: socket.id,
     connected: socket.connected,
     disconnected: socket.disconnected,
   });
 };
 
-// Send a test message directly via socket
+// Invia un messaggio di test direttamente via socket
 const testSendMessage = (userId: number, message: string) => {
   const socket = getSocket();
   if (!socket || !socket.connected) {
-    console.error('Socket not connected');
+    console.error('Socket non connesso');
     return;
   }
 
-  // Get current user from localStorage (this is a hack for debugging)
+  // Ottieni l'utente corrente da localStorage (questo è un hack per il debug)
   const token = localStorage.getItem('token');
   if (!token) {
-    console.error('No token found, cannot determine current user');
+    console.error('Nessun token trovato, impossibile determinare l\'utente corrente');
     return;
   }
 
@@ -58,54 +55,54 @@ const testSendMessage = (userId: number, message: string) => {
       receiverId: userId
     });
     
-    console.log(`Test message sent to user ${userId}`);
+    console.log(`Messaggio di test inviato all'utente ${userId}`);
   } catch (error) {
-    console.error('Error sending test message:', error);
+    console.error('Errore invio messaggio di test:', error);
   }
 };
 
-// Check which users are reported as online
+// Controlla quali utenti sono segnalati come online
 const checkOnlineUsers = () => {
   const socket = getSocket();
   if (!socket || !socket.connected) {
-    console.error('Socket not connected');
+    console.error('Socket non connesso');
     return;
   }
 
-  // Request online users list
+  // Richiedi lista utenti online
   socket.on('onlineUsers', (userIds) => {
-    console.log('Online users:', userIds);
+    console.log('Utenti online:', userIds);
   });
   
-  // Ping to trigger an update
+  // Ping per attivare un aggiornamento
   pingServer();
 };
 
-// Force a user to appear online (for testing only)
+// Forza un utente ad apparire online (solo per test)
 const forceOnlineStatus = (userId: number) => {
-  // This is just a mock for debugging
-  console.log(`Attempting to force user ${userId} online (mock function)`);
+  // Questa è solo una simulazione per il debug
+  console.log(`Tentativo di forzare l'utente ${userId} online (funzione mock)`);
   
-  // In a real app, you'd need server-side changes to achieve this
+  // In un'app reale, avresti bisogno di modifiche lato server per ottenere questo
   const chatContext = document.querySelector('[data-testid="chat-context"]');
   if (chatContext) {
-    // This is a hack and will only work if we add a data-testid attribute to the context provider
+    // Questo è un hack e funzionerà solo se aggiungiamo un attributo data-testid al provider di contesto
     const event = new CustomEvent('forceUserOnline', { detail: { userId } });
     chatContext.dispatchEvent(event);
-    console.log('Event dispatched');
+    console.log('Evento inviato');
   } else {
-    console.log('Chat context element not found');
+    console.log('Elemento contesto chat non trovato');
   }
 };
 
-// Refresh users list
+// Aggiorna lista utenti
 const refreshUsers = () => {
-  // This is a mock that just outputs to console
-  console.log('Would refresh users list (mock function)');
-  // In a real app, you'd call the relevant function from your context
+  // Questa è una simulazione che stampa solo sulla console
+  console.log('Dovrebbe aggiornare la lista utenti (funzione mock)');
+  // In un'app reale, chiameresti la funzione rilevante dal tuo contesto
 };
 
-// Initialize debug tools (call this once)
+// Inizializza strumenti di debug (chiamala una volta)
 export const initDebugTools = () => {
   window.debugChat = {
     pingServer,
@@ -116,7 +113,7 @@ export const initDebugTools = () => {
     forceOnlineStatus
   };
   
-  console.log('Debug tools initialized. Access them via window.debugChat.*');
+  console.log('Strumenti di debug inizializzati. Accedi tramite window.debugChat.*');
 };
 
 export default {

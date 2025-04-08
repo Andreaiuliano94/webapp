@@ -1,16 +1,15 @@
-// client/src/services/api.ts
 import axios from 'axios';
 
-// Create axios instance
+// Crea istanza axios
 const api = axios.create({
-  baseURL: '/api', // Use relative URL to leverage Vite's proxy
+  baseURL: '/api', // Usa URL relativo per sfruttare il proxy di Vite
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: true, // Include cookies in requests
+  withCredentials: true, // Includi cookie nelle richieste
 });
 
-// Add token to requests if available
+// Aggiungi token alle richieste se disponibile
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
@@ -24,17 +23,17 @@ api.interceptors.request.use(
   }
 );
 
-// Add response interceptor for error handling
+// Aggiungi interceptor di risposta per la gestione degli errori
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Log error details for debugging
-    console.error('API Error:', error.response?.data || error.message);
+    // Registra dettagli errore per debug
+    console.error('Errore API:', error.response?.data || error.message);
     return Promise.reject(error);
   }
 );
 
-// Authentication API
+// API Autenticazione
 export const authAPI = {
   register: async (userData: {
     username: string;
@@ -42,13 +41,13 @@ export const authAPI = {
     password: string;
     displayName?: string;
   }) => {
-    console.log('Registering user with data:', userData);
+    console.log('Registrazione utente con dati:', userData);
     const response = await api.post('/auth/register', userData);
     return response.data;
   },
 
   login: async (credentials: { email: string; password: string }) => {
-    console.log('Logging in with:', credentials.email);
+    console.log('Login con:', credentials.email);
     const response = await api.post('/auth/login', credentials);
     return response.data;
   },
@@ -64,7 +63,7 @@ export const authAPI = {
   },
 };
 
-// User API
+// API Utenti
 export const userAPI = {
   getAllUsers: async () => {
     const response = await api.get('/users');
@@ -94,7 +93,7 @@ export const userAPI = {
   },
 };
 
-// Message API
+// API Messaggi
 export const messageAPI = {
   getMessages: async (userId: number, page = 1, limit = 50) => {
     const response = await api.get(`/messages/${userId}?page=${page}&limit=${limit}`);
@@ -119,5 +118,5 @@ export const messageAPI = {
   },
 };
 
-// Default export
+// Export predefinito
 export default api;

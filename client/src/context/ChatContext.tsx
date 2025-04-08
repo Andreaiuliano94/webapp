@@ -1,4 +1,3 @@
-// client/src/context/ChatContext.tsx
 import { createContext, useState, useEffect, useContext, ReactNode, useCallback, useRef } from 'react';
 import { Socket } from 'socket.io-client';
 import { User, UserStatus } from '../types/user';
@@ -375,7 +374,6 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     const handleIncomingCall = (data: { from: number; username: string; signal: any }) => {
       console.log('Chiamata in arrivo da:', data.username);
       setIncomingCall(data);
-      
       // Suona notifica per chiamata
       try {
         const audio = new Audio('/ringtone.mp3');

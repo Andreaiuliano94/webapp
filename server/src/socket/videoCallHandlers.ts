@@ -1,4 +1,3 @@
-// server/src/socket/videoCallHandlers.ts
 import { Server, Socket } from 'socket.io';
 
 interface AuthenticatedSocket extends Socket {
@@ -18,13 +17,13 @@ export const setupVideoCallHandlers = (
   socket: AuthenticatedSocket,
   onlineUsers: Map<number, string>
 ) => {
-  // Handle video call request
+  // Gestisce richiesta di videochiamata
   socket.on('callUser', (data: CallSignal) => {
     if (!socket.userId || !socket.username) return;
 
-    // Ensure caller ID matches authenticated user
+    // Assicura che l'ID del chiamante corrisponda all'utente autenticato
     if (data.from !== socket.userId) {
-      return socket.emit('error', { message: 'Unauthorized caller ID' });
+      return socket.emit('error', { message: 'ID chiamante non autorizzato' });
     }
 
     const receiverSocketId = onlineUsers.get(data.to);
@@ -35,15 +34,15 @@ export const setupVideoCallHandlers = (
         signal: data.signal
       });
     } else {
-      // User is offline, notify caller
+      // L'utente è offline, notifica al chiamante
       socket.emit('callRejected', {
         userId: data.to,
-        reason: 'User is offline'
+        reason: 'L\'utente è offline'
       });
     }
   });
 
-  // Handle accepting a call
+  // Gestisce accettazione chiamata
   socket.on('acceptCall', (data: CallSignal) => {
     if (!socket.userId) return;
 
@@ -56,7 +55,7 @@ export const setupVideoCallHandlers = (
     }
   });
 
-  // Handle rejecting a call
+  // Gestisce rifiuto chiamata
   socket.on('rejectCall', (data: { to: number }) => {
     if (!socket.userId) return;
 
@@ -64,12 +63,12 @@ export const setupVideoCallHandlers = (
     if (callerSocketId) {
       io.to(callerSocketId).emit('callRejected', {
         userId: socket.userId,
-        reason: 'Call was rejected'
+        reason: 'La chiamata è stata rifiutata'
       });
     }
   });
 
-  // Handle ending a call
+  // Gestisce fine chiamata
   socket.on('endCall', (data: { to: number }) => {
     if (!socket.userId) return;
 
@@ -81,7 +80,7 @@ export const setupVideoCallHandlers = (
     }
   });
 
-  // Handle WebRTC signaling
+  // Gestisce la segnalazione WebRTC
   socket.on('ice-candidate', (data: { to: number, candidate: any }) => {
     if (!socket.userId) return;
 

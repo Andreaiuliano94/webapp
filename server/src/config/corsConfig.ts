@@ -1,4 +1,3 @@
-// server/src/config/corsConfig.ts
 export const corsOptions = {
  origin: process.env.CLIENT_URL || 'http://localhost:5173',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],

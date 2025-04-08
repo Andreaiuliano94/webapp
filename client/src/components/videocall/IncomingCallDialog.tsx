@@ -1,4 +1,3 @@
-// client/src/components/videocall/IncomingCallDialog.tsx
 import React from 'react';
 import {
   Dialog,
@@ -67,7 +66,7 @@ const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
               },
             }}
           >
-            Incoming Video Call
+            Videochiamata in arrivo
           </Typography>
 
           <Avatar
@@ -95,7 +94,7 @@ const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
           </Typography>
 
           <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
-            is calling you...
+            ti sta chiamando...
           </Typography>
 
           <Box
@@ -117,7 +116,7 @@ const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
                 py: 1,
               }}
             >
-              Decline
+              Rifiuta
             </Button>
 
             <Button
@@ -132,7 +131,7 @@ const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
               }}
               autoFocus
             >
-              Accept
+              Accetta
             </Button>
           </Box>
         </Box>

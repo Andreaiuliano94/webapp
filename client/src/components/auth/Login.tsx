@@ -1,4 +1,3 @@
-// client/src/components/auth/Login.tsx
 import { useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import {
@@ -34,8 +33,8 @@ const Login = () => {
     try {
       await login(email, password);
     } catch (err) {
-      // Error is already handled in the auth context
-      console.error('Login failed:', err);
+      // L'errore è già gestito nel context di autenticazione
+      console.error('Login fallito:', err);
     } finally {
       setIsSubmitting(false);
     }
@@ -63,10 +62,10 @@ const Login = () => {
         >
           <Box sx={{ mb: 4, textAlign: 'center' }}>
             <Typography variant="h4" component="h1" gutterBottom>
-              Welcome Back
+              Bentornato
             </Typography>
             <Typography variant="body1" color="text.secondary">
-              Sign in to continue to the chat
+              Accedi per continuare alla chat
             </Typography>
           </Box>
 
@@ -130,14 +129,14 @@ const Login = () => {
                 py: 1.5,
               }}
             >
-              {isSubmitting ? <CircularProgress size={24} /> : 'Sign In'}
+              {isSubmitting ? <CircularProgress size={24} /> : 'Accedi'}
             </Button>
 
             <Box sx={{ mt: 2, textAlign: 'center' }}>
               <Typography variant="body2">
-                Don't have an account?{' '}
+                Non hai un account?{' '}
                 <Link component={RouterLink} to="/register" underline="hover">
-                  Sign up now
+                  Registrati ora
                 </Link>
               </Typography>
             </Box>

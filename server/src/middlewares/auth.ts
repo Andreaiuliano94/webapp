@@ -1,4 +1,3 @@
-// server/src/middlewares/auth.ts
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { PrismaClient } from '@prisma/client';
@@ -12,7 +11,7 @@ interface DecodedToken {
   exp?: number;
 }
 
-// Extend Express Request interface to include user property
+// Estende l'interfaccia Request di Express per includere la proprietà user
 declare global {
   namespace Express {
     interface Request {
@@ -30,35 +29,34 @@ export const authenticateJWT = async (
   next: NextFunction
 ) => {
   try {
-    // Get token from authorization header or cookies
+    // Ottieni token dall'header di autorizzazione o dai cookie
     const authHeader = req.headers.authorization;
     const token = authHeader?.split(' ')[1] || req.cookies.token;
 
     if (!token) {
-      return res.status(401).json({ message: 'No token provided' });
+      return res.status(401).json({ message: 'Nessun token fornito' });
     }
 
-    // Verify token
+    // Verifica token
     const decoded = jwt.verify(
       token,
       process.env.JWT_SECRET || 'fallback_secret'
     ) as DecodedToken;
 
-    // Check if user exists
+    // Controlla se l'utente esiste
     const user = await prisma.user.findUnique({
       where: { id: decoded.id },
       select: { id: true, email: true }
     });
 
     if (!user) {
-      return res.status(401).json({ message: 'User not found' });
+      return res.status(401).json({ message: 'Utente non trovato' });
     }
 
-    // Attach user to request
+    // Allega utente alla richiesta
     req.user = user;
     next();
   } catch (error) {
-    return res.status(401).json({ message: 'Invalid token' });
+    return res.status(401).json({ message: 'Token non valido' });
   }
 };
-

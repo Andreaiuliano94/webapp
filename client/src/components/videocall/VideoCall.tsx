@@ -1,4 +1,3 @@
-// client/src/components/videocall/VideoCall.tsx
 import { useState, useEffect, useRef } from 'react';
 import {
   Box, Typography, IconButton, Paper, Dialog, DialogContent, CircularProgress
@@ -34,21 +33,21 @@ const VideoCall = ({ isOpen, onClose, user, socket, isIncoming, signal }: VideoC
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   
-  // Cleanup function to properly release all resources
+  // Funzione di pulizia per rilasciare correttamente tutte le risorse
   const cleanup = () => {
-    console.log('Performing cleanup');
+    console.log('Esecuzione pulizia');
     
-    // Stop all media tracks
+    // Ferma tutte le tracce multimediali
     if (streamRef.current) {
       const tracks = streamRef.current.getTracks();
       tracks.forEach(track => {
-        console.log(`Stopping ${track.kind} track`);
+        console.log(`Fermando traccia ${track.kind}`);
         track.stop();
       });
       streamRef.current = null;
     }
     
-    // Clear video elements
+    // Pulisci elementi video
     if (localVideoRef.current) {
       localVideoRef.current.srcObject = null;
     }
@@ -57,18 +56,18 @@ const VideoCall = ({ isOpen, onClose, user, socket, isIncoming, signal }: VideoC
       remoteVideoRef.current.srcObject = null;
     }
     
-    // Reset state
+    // Reset dello stato
     setStream(null);
   };
   
-  // Handler for ending the call
+  // Gestore per terminare la chiamata
   const handleEndCall = () => {
-    console.log('Ending call');
+    console.log('Terminazione chiamata');
     cleanup();
     onClose();
   };
   
-  // Toggle microphone mute
+  // Attiva/disattiva microfono
   const toggleMute = () => {
     if (stream) {
       const audioTracks = stream.getAudioTracks();
@@ -79,7 +78,7 @@ const VideoCall = ({ isOpen, onClose, user, socket, isIncoming, signal }: VideoC
     }
   };
   
-  // Toggle video on/off
+  // Attiva/disattiva video
   const toggleVideo = () => {
     if (stream) {
       const videoTracks = stream.getVideoTracks();
@@ -90,62 +89,62 @@ const VideoCall = ({ isOpen, onClose, user, socket, isIncoming, signal }: VideoC
     }
   };
   
-  // Initialize media stream when the dialog opens
+  // Inizializza lo stream multimediale quando il dialog si apre
   useEffect(() => {
-    // Don't run if dialog is not open
+    // Non eseguire se il dialog non è aperto
     if (!isOpen) return;
     
-    console.log('Initializing media access');
+    console.log('Inizializzando accesso ai media');
     
     let mounted = true;
     
     const initializeMedia = async () => {
       try {
-        console.log('Requesting media access');
+        console.log('Richiesta accesso ai media');
         const mediaStream = await navigator.mediaDevices.getUserMedia({
           video: true,
           audio: true
         });
         
-        // Check if component is still mounted
+        // Controlla se il componente è ancora montato
         if (!mounted) {
           mediaStream.getTracks().forEach(track => track.stop());
           return;
         }
         
-        console.log('Media access granted');
+        console.log('Accesso ai media concesso');
         
-        // Store the stream in state and ref
+        // Memorizza lo stream nello stato e nel ref
         setStream(mediaStream);
         streamRef.current = mediaStream;
         
-        // Set stream to video elements
+        // Imposta lo stream negli elementi video
         if (localVideoRef.current) {
-          console.log('Setting local video stream');
+          console.log('Impostazione stream video locale');
           localVideoRef.current.srcObject = mediaStream;
         }
         
-        // To test both screens, we'll set the same stream to remote video
-        // In a real app, this would be the remote peer's stream
+        // Per testare entrambi gli schermi, impostiamo lo stesso stream al video remoto
+        // In un'app reale, questo sarebbe lo stream del peer remoto
         if (remoteVideoRef.current) {
-          console.log('Setting remote video stream (demo)');
+          console.log('Impostazione stream video remoto (demo)');
           remoteVideoRef.current.srcObject = mediaStream;
         }
         
-        // Update connection status for UI
+        // Aggiorna lo stato della connessione per l'interfaccia utente
         setConnectionStatus('connected');
         
       } catch (err) {
-        console.error('Error accessing media devices:', err);
+        console.error('Errore accesso ai dispositivi multimediali:', err);
         if (mounted) {
-          setError(`Could not access camera/microphone: ${err instanceof Error ? err.message : 'Unknown error'}`);
+          setError(`Impossibile accedere alla fotocamera/microfono: ${err instanceof Error ? err.message : 'Errore sconosciuto'}`);
         }
       }
     };
     
     initializeMedia();
     
-    // Cleanup when component unmounts or dialog closes
+    // Pulizia quando il componente si smonta o il dialog si chiude
     return () => {
       mounted = false;
       cleanup();
@@ -167,13 +166,13 @@ const VideoCall = ({ isOpen, onClose, user, socket, isIncoming, signal }: VideoC
       }}
       TransitionProps={{
         onExited: () => {
-          // Additional cleanup on dialog exit
+          // Pulizia aggiuntiva all'uscita dal dialog
           cleanup();
         }
       }}
     >
       <DialogContent sx={{ p: 0, position: 'relative', height: '100%' }}>
-        {/* Close button */}
+        {/* Pulsante di chiusura */}
         <IconButton
           sx={{ position: 'absolute', top: 8, right: 8, bgcolor: 'rgba(0, 0, 0, 0.5)', zIndex: 2 }}
           onClick={handleEndCall}
@@ -181,7 +180,7 @@ const VideoCall = ({ isOpen, onClose, user, socket, isIncoming, signal }: VideoC
           <CloseIcon sx={{ color: 'white' }} />
         </IconButton>
         
-        {/* Connection status and errors */}
+        {/* Stato connessione ed errori */}
         {connectionStatus === 'connecting' && !error && (
           <Box
             sx={{
@@ -199,7 +198,7 @@ const VideoCall = ({ isOpen, onClose, user, socket, isIncoming, signal }: VideoC
           >
             <CircularProgress color="inherit" size={40} sx={{ mb: 2 }} />
             <Typography variant="h6">
-              Connecting to {user.displayName || user.username}...
+              Connessione a {user.displayName || user.username}...
             </Typography>
           </Box>
         )}
@@ -225,7 +224,7 @@ const VideoCall = ({ isOpen, onClose, user, socket, isIncoming, signal }: VideoC
           </Box>
         )}
         
-        {/* Remote video (large background) */}
+        {/* Video remoto (sfondo grande) */}
         <Box sx={{ height: '100%', width: '100%', bgcolor: 'black', position: 'relative' }}>
           <video
             ref={remoteVideoRef}
@@ -239,7 +238,7 @@ const VideoCall = ({ isOpen, onClose, user, socket, isIncoming, signal }: VideoC
             }}
           />
           
-          {/* Show avatar when not connected */}
+          {/* Mostra avatar quando non connesso */}
           {connectionStatus !== 'connected' && (
             <Box
               sx={{
@@ -275,7 +274,7 @@ const VideoCall = ({ isOpen, onClose, user, socket, isIncoming, signal }: VideoC
           )}
         </Box>
         
-        {/* Local video (small overlay) */}
+        {/* Video locale (piccolo overlay) */}
         <Paper
           elevation={3}
           sx={{
@@ -298,12 +297,12 @@ const VideoCall = ({ isOpen, onClose, user, socket, isIncoming, signal }: VideoC
               width: '100%',
               height: '100%',
               objectFit: 'cover',
-              transform: 'scaleX(-1)', // Mirror effect
+              transform: 'scaleX(-1)', // Effetto specchio
               display: !isVideoOff ? 'block' : 'none'
             }}
           />
           
-          {/* Show avatar when video is off */}
+          {/* Mostra avatar quando il video è spento */}
           {isVideoOff && (
             <Box
               sx={{
@@ -327,14 +326,14 @@ const VideoCall = ({ isOpen, onClose, user, socket, isIncoming, signal }: VideoC
                 }}
               >
                 <Typography variant="h6" sx={{ color: 'white' }}>
-                  You
+                  Tu
                 </Typography>
               </Box>
             </Box>
           )}
         </Paper>
         
-        {/* Call controls */}
+        {/* Controlli chiamata */}
         <Box
           sx={{
             position: 'absolute',

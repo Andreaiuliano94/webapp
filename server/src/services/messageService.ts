@@ -1,4 +1,3 @@
-// server/src/services/messageService.ts
 import { PrismaClient } from '@prisma/client';
 import { SendMessageDto, MessagesPaginationResponse } from '../types/message';
 
@@ -11,10 +10,10 @@ export const messageService = {
     page = 1,
     limit = 50
   ): Promise<MessagesPaginationResponse> => {
-    // Calculate skip for pagination
+    // Calcola skip per paginazione
     const skip = (page - 1) * limit;
 
-    // Get total count of messages
+    // Ottieni conteggio totale dei messaggi
     const totalCount = await prisma.message.count({
       where: {
         OR: [
@@ -30,7 +29,7 @@ export const messageService = {
       }
     });
 
-    // Get messages
+    // Ottieni messaggi
     const messages = await prisma.message.findMany({
       where: {
         OR: [
@@ -60,7 +59,7 @@ export const messageService = {
       take: limit
     });
 
-    // Mark unread messages as read
+    // Segna messaggi non letti come letti
     await prisma.message.updateMany({
       where: {
         senderId: otherUserId,
@@ -83,7 +82,7 @@ export const messageService = {
           ...msg.sender,
           avatarUrl: msg.sender.avatarUrl === null ? undefined : msg.sender.avatarUrl
         }
-      })), // Return in ascending order with null converted to undefined
+      })), // Restituisce in ordine crescente con null convertito in undefined
       pagination: {
         total: totalCount,
         page,
@@ -98,16 +97,16 @@ export const messageService = {
       ? parseInt(messageData.receiverId) 
       : messageData.receiverId;
 
-    // Check if receiver exists
+    // Controlla se il ricevente esiste
     const receiver = await prisma.user.findUnique({
       where: { id: receiverId }
     });
 
     if (!receiver) {
-      throw new Error('Receiver not found');
+      throw new Error('Destinatario non trovato');
     }
 
-    // Create message
+    // Crea messaggio
     const newMessage = await prisma.message.create({
       data: {
         content: messageData.content,
@@ -131,7 +130,7 @@ export const messageService = {
   },
 
   deleteMessage: async (messageId: number, userId: number) => {
-    // Verifica che il messaggio esista e appartiene all'utente
+    // Verifica che il messaggio esista e appartenga all'utente
     const message = await prisma.message.findFirst({
       where: {
         id: messageId,
@@ -140,7 +139,7 @@ export const messageService = {
     });
     
     if (!message) {
-      throw new Error('Message not found or you are not authorized to delete it');
+      throw new Error('Messaggio non trovato o non sei autorizzato a eliminarlo');
     }
     
     // Elimina il messaggio
@@ -151,4 +150,3 @@ export const messageService = {
     return { success: true };
   }
 };
-

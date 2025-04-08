@@ -1,4 +1,3 @@
-// client/src/components/chat/MessageItem.tsx
 import { useState, useContext } from 'react';
 import { 
   Box, Typography, Avatar, Paper, IconButton, Menu, MenuItem, Snackbar, Alert,

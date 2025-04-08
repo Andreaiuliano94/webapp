@@ -1,12 +1,10 @@
-// client/src/components/chat/ChatLayout.tsx
 import { useState, useEffect } from 'react';
 import { Box, useMediaQuery, useTheme, Snackbar, Alert } from '@mui/material';
 import UserList from './UserList';
 import MessageArea from './MessageArea';
 import { useChat } from '../../context/ChatContext';
 import { useAuth } from '../../hooks/useAuth';
-// Cambia l'importazione per evitare conflitti di nome
-import VideoCallComponent from '../videocall/VideoCall'; // Rinominato l'import
+import VideoCallComponent from '../videocall/VideoCall'; 
 import IncomingCallDialog from '../videocall/IncomingCallDialog';
 
 const ChatLayout = () => {
@@ -29,25 +27,25 @@ const ChatLayout = () => {
   
   const { user: currentUser } = useAuth();
   
-  // Periodically refresh users list
+  // Aggiornamento periodico della lista utenti
   useEffect(() => {
     if (!refreshUsers) return;
     
     const interval = setInterval(() => {
       try {
         refreshUsers().catch(err => {
-          console.error('Failed to refresh users:', err);
+          console.error('Impossibile aggiornare la lista utenti:', err);
         });
       } catch (err) {
-        console.error('Error refreshing users:', err);
+        console.error('Errore durante l\'aggiornamento degli utenti:', err);
       }
-    }, 30000); // Every 30 seconds
+    }, 30000); // Ogni 30 secondi
     
     return () => clearInterval(interval);
   }, [refreshUsers]);
 
   const handleSelectUser = (user: any) => {
-    // Avoid doing anything if we're already selecting this user
+    // Evita di fare qualsiasi cosa se stiamo già selezionando questo utente
     if (selectedUser && user.id === selectedUser.id) return;
     
     setSelectedUser(user);
@@ -62,49 +60,49 @@ const ChatLayout = () => {
     }
   };
   
-  // Handle socket connection status
+  // Gestione dello stato della connessione socket
   useEffect(() => {
     if (!socket) return;
     
     const handleConnect = () => {
-      console.log('Socket connected');
-      // Refresh users list on reconnect
+      console.log('Socket connesso');
+      // Aggiorna la lista utenti alla riconnessione
       try {
         refreshUsers();
       } catch (err) {
-        console.error('Error refreshing users after connect:', err);
+        console.error('Errore aggiornamento utenti dopo connessione:', err);
       }
     };
     
     const handleDisconnect = (reason: string) => {
-      console.log(`Socket disconnected: ${reason}`);
-      setError('Disconnected from server. Reconnecting...');
+      console.log(`Socket disconnesso: ${reason}`);
+      setError('Disconnesso dal server. Riconnessione in corso...');
       
-      // If the disconnect is not because of a transport close, try to reconnect
+      // Se la disconnessione non è dovuta a una chiusura del trasporto, prova a riconnettersi
       if (reason === 'io server disconnect' && socket.connect) {
         try {
           socket.connect();
         } catch (err) {
-          console.error('Error reconnecting socket:', err);
+          console.error('Errore riconnessione socket:', err);
         }
       }
     };
     
     const handleError = (err: any) => {
-      console.error('Socket error:', err);
-      setError('Connection error. Please check your network.');
+      console.error('Errore socket:', err);
+      setError('Errore di connessione. Controlla la tua rete.');
     };
     
-    // Set up listeners
+    // Configura i listener
     try {
       socket.on('connect', handleConnect);
       socket.on('disconnect', handleDisconnect);
       socket.on('error', handleError);
     } catch (err) {
-      console.error('Error setting up socket listeners:', err);
+      console.error('Errore durante la configurazione dei listener socket:', err);
     }
     
-    // Clean up
+    // Pulizia
     return () => {
       try {
         if (socket) {
@@ -113,12 +111,12 @@ const ChatLayout = () => {
           socket.off('error', handleError);
         }
       } catch (err) {
-        console.error('Error cleaning up socket listeners:', err);
+        console.error('Errore pulizia listener socket:', err);
       }
     };
   }, [socket, refreshUsers]);
 
-  // Handle call end
+  // Gestione fine chiamata
   const handleCallEnd = () => {
     try {
       if (socket && socket.connected && selectedUser) {
@@ -126,7 +124,7 @@ const ChatLayout = () => {
       }
       endCall();
     } catch (err) {
-      console.error('Error ending call:', err);
+      console.error('Errore terminazione chiamata:', err);
     }
   };
 
@@ -147,7 +145,7 @@ const ChatLayout = () => {
   return (
     <>
       <Box sx={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
-        {/* User list - hide on mobile when in chat view */}
+        {/* Lista utenti - nascosta su mobile quando in visualizzazione chat */}
         {(!isMobile || mobileView === 'users') && (
           <UserList 
             selectedUser={selectedUser} 
@@ -156,7 +154,7 @@ const ChatLayout = () => {
           />
         )}
 
-        {/* Chat area - hide on mobile when in users view */}
+        {/* Area chat - nascosta su mobile quando in visualizzazione utenti */}
         {(!isMobile || mobileView === 'chat') && (
           <MessageArea 
             selectedUser={selectedUser} 
@@ -166,7 +164,7 @@ const ChatLayout = () => {
         )}
       </Box>
       
-      {/* Error snackbar */}
+      {/* Snackbar errori */}
       <Snackbar
         open={!!error}
         autoHideDuration={6000}
@@ -178,10 +176,10 @@ const ChatLayout = () => {
         </Alert>
       </Snackbar>
       
-      {/* Incoming call dialog */}
+      {/* Dialog chiamata in arrivo */}
       {renderIncomingCallDialog()}
       
-      {/* Video call component - Nota che ora usiamo VideoCallComponent invece di VideoCall */}
+      {/* Componente videochiamata - Nota che ora usiamo VideoCallComponent invece di VideoCall */}
       {isCallActive && selectedUser && currentUser && socket && (
         <VideoCallComponent
           isOpen={isCallActive}

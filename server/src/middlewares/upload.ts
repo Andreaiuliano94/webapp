@@ -1,16 +1,15 @@
-// server/src/middlewares/upload.ts
 import multer from 'multer';
 import path from 'path';
 import { Request } from 'express';
 import fs from 'fs';
 
-// Ensure uploads directory exists
+// Assicurati che la directory uploads esista
 const uploadDir = path.join(__dirname, '../../uploads');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// Configure storage
+// Configura storage
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => {
     cb(null, uploadDir);
@@ -22,9 +21,9 @@ const storage = multer.diskStorage({
   }
 });
 
-// File filter
+// Filtro file
 const fileFilter = (_req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
-  // Accept images, videos, documents, etc.
+  // Accetta immagini, video, documenti, ecc.
   const allowedFileTypes = /jpeg|jpg|png|gif|mp4|webm|pdf|doc|docx|xls|xlsx|ppt|pptx|txt|zip/;
   const extname = allowedFileTypes.test(path.extname(file.originalname).toLowerCase());
   const mimetype = allowedFileTypes.test(file.mimetype);
@@ -32,11 +31,11 @@ const fileFilter = (_req: Request, file: Express.Multer.File, cb: multer.FileFil
   if (extname && mimetype) {
     return cb(null, true);
   } else {
-    cb(new Error('Unsupported file type'));
+    cb(new Error('Tipo di file non supportato'));
   }
 };
 
-// Create upload middleware
+// Crea middleware per upload
 export const upload = multer({
   storage: storage,
   limits: { fileSize: 50 * 1024 * 1024 }, // 50MB

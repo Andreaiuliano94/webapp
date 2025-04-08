@@ -1,13 +1,11 @@
-// server/src/controllers/authController.ts
 import { Request, Response } from 'express';
 import { authService } from '../services/authService';
 
-// Register a new user
+// Registra un nuovo utente
 export const register = async (req: Request, res: Response) => {
   const { username, email, password, displayName } = req.body;
 
   try {
-    // Validate input
     if (!username || !email || !password) {
       return res.status(400).json({ message: 'Username, email, and password are required' });
     }
@@ -19,14 +17,14 @@ export const register = async (req: Request, res: Response) => {
       displayName
     });
 
-    // Set cookie
+    
     res.cookie('token', authResponse.token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
 
-    // Send response
+ 
     res.status(201).json({
       message: authResponse.message,
       user: authResponse.user,
@@ -48,21 +46,21 @@ export const login = async (req: Request, res: Response) => {
   const { email, password } = req.body;
 
   try {
-    // Validate input
+    
     if (!email || !password) {
       return res.status(400).json({ message: 'Email and password are required' });
     }
 
     const authResponse = await authService.login({ email, password });
 
-    // Set cookie
+ 
     res.cookie('token', authResponse.token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
 
-    // Send response
+   
     res.status(200).json({
       message: authResponse.message,
       user: authResponse.user,
@@ -82,12 +80,12 @@ export const login = async (req: Request, res: Response) => {
 // Logout user
 export const logout = async (req: Request, res: Response) => {
   try {
-    // Update user status if authenticated
+    
     if (req.user) {
       await authService.logout(req.user.id);
     }
 
-    // Clear cookie
+    
     res.clearCookie('token');
 
     res.status(200).json({ message: 'Logout successful' });
@@ -97,7 +95,7 @@ export const logout = async (req: Request, res: Response) => {
   }
 };
 
-// Get current user
+
 export const getCurrentUser = async (req: Request, res: Response) => {
   try {
     if (!req.user) {
